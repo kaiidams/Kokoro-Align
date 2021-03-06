@@ -4,12 +4,15 @@ import numpy as np
 import pickle
 import librosa
 from tqdm import tqdm
+import argparse
 
-from vocoder import estimatef0, analyze, synthesize
+from .vocoder import estimatef0, analyze, synthesize
 
 CORPUSDATA_PATH = 'data/balance_sentences.txt'
+CORPUSDATA_CSS10JA_PATH = 'data/japanese-single-speaker-speech-dataset/transcript.txt'
 
 WAVDATA_PATH = {
+    'css10ja': 'data/japanese-single-speaker-speech-dataset/%s',
     'tsuchiya_normal': 'data/tsuchiya_normal/tsuchiya_normal_%s.wav',
     'hiroshiba_normal': 'data/hiroshiba_normal/hiroshiba_normal_%s.wav',
     'tsukuyomi_normal': 'data/つくよみちゃんコーパス Vol.1 声優統計コーパス（JVSコーパス準拠）'
@@ -21,9 +24,9 @@ WAVTEST_PATH = 'data/%s_synthesized/%s_%s.wav'
 
 SAMPLE_RATE = 16000
 
-vocab = list(':Nabcdefghijkmnopqrstuwyz')
+vocab = list('.,?:Nabcdefghijkmnopqrstuwyz')
 v2i = {v: i for i, v in enumerate(vocab)}
-assert len(v2i) == 25
+assert len(v2i) == 28
 
 normparams = np.array([
     [282.67361826246565, 236.92293935472185],
@@ -53,7 +56,7 @@ normparams = np.array([
     [0.40220457772049667, 0.07025092383589981],
     [0.48744988996484434, -0.04962998073599184],
     [32.80534646915437, -3.0824670989608625],
-], dtype=np.float)
+], dtype=np.float64)
 
 def readcorpus(file):
     corpus = []
@@ -73,6 +76,17 @@ def readcorpus(file):
 
     return corpus
 
+def readcorpus_css10ja(file):
+    from ._css10ja2voca import css10ja2voca
+    corpus = []
+    with open(file) as f:
+        for line in f:
+            parts = line.rstrip('\r\n').split('|')
+            id_, _, yomi, _ = parts
+            monophone = css10ja2voca(yomi)
+            corpus.append((id_, monophone))
+    return corpus
+
 def readwav(file, fs):
     x, origfs = sf.read(file)
     x = x / np.max(x)
@@ -83,10 +97,13 @@ def writewav(file, x, fs):
     sf.write(file, x, fs, 'PCM_16')
 
 def text2feature(text):
-    return np.array([v2i[ch] for ch in text], dtype=np.int)
+    return np.array([v2i[ch] for ch in text], dtype=np.int8)
 
-def wav2feature(x, fs, normed=True):
-    f0, mcep, codeap = analyze(x, fs)
+def feature2text(feature):
+    return ''.join(vocab[x] for x in feature)
+
+def wav2feature(x, fs, normed=True, pitchshift=None):
+    f0, mcep, codeap = analyze(x, fs, pitchshift=pitchshift)
     feature = np.hstack((f0.reshape((-1, 1)), mcep, codeap))
     # Normalize
     if normed:
@@ -153,7 +170,31 @@ def analyzerange(name, fs=SAMPLE_RATE):
         print(f'    [{alpha[i]}, {beta[i]}],')
     print()
 
-def preprocess(name, fs=SAMPLE_RATE):
+def make_empty_data():
+    return {
+        'id': [],
+        'text_index': [],
+        'text_data': [],
+        'audio_index': [],
+        'audio_data': []
+    }
+
+def append_data(data, id_, text_index, text, audio_index, audio):
+    data['id'].append(id_)
+    data['text_index'].append(text_index)
+    data['text_data'].append(text)
+    data['audio_index'].append(audio_index)
+    data['audio_data'].append(audio)
+
+def finish_data(data, file):
+    data['id'] = np.array(data['id'])
+    data['text_index'] = np.array(data['text_index'], dtype=np.int32)
+    data['text_data'] = np.concatenate(data['text_data'], axis=0)
+    data['audio_index'] = np.array(data['audio_index'], dtype=np.int32)
+    data['audio_data'] = np.concatenate(data['audio_data'], axis=0)
+    np.savez(file, **data)
+
+def preprocess_jvs(name, fs=SAMPLE_RATE):
     corpus = readcorpus(CORPUSDATA_PATH)
     data = {
         'id': [],
@@ -172,21 +213,53 @@ def preprocess(name, fs=SAMPLE_RATE):
     with open(output_file, 'wb') as f:
         pickle.dump(data, f)
 
-def test(name, fs=SAMPLE_RATE):
-    output_file = OUTPUT_PATH % name
-    with open(output_file, 'rb') as f:
-        data = pickle.load(f)
-    print(len(data['text']))
-    print(len(data['audio']))
-    for i in tqdm(range(10)):
-        id_ = data['id'][i]
-        x = feature2wav(data['audio'][i])
-        file = WAVTEST_PATH % (name, name, id_)
-        os.makedirs(os.path.dirname(file), exist_ok=True)
-        writewav(file, x, fs)
+def process_css10ja(name='css10ja'):
+    outfile = [
+        'data/css10ja_train.npz',
+        'data/css10ja_val.npz',
+    ]
+    text_index = [0, 0]
+    audio_index = [0, 0]
+    data = [
+        make_empty_data(),
+        make_empty_data(),
+    ]
+
+    corpus = readcorpus_css10ja(CORPUSDATA_CSS10JA_PATH)
+    split_index = 13
+    split_total = 57
+    for id_, monophone in tqdm(corpus):
+        file = os.path.join('data', 'tmp', id_.replace('meian/', '').replace('.wav', '.npz'))
+        if not monophone:
+            print('Skipping: <empty>')
+            continue
+        try:
+            text = text2feature(monophone)
+        except:
+            print(f'Skipping: {monophone}')
+            continue
+    
+        audio = np.load(file)['arr_0']
+        assert audio.shape[0] > 0
+
+        split = 0 if split_index else 1
+        text_index[split] += text.shape[0]
+        audio_index[split] += audio.shape[0]
+        #data['audio'].append(wav2feature(x, fs))
+        append_data(data[split], id_, text_index[split], text, audio_index[split], audio)
+
+        split_index += 1
+        if split_index == split_total: split_index = 0
+
+    finish_data(data[0], outfile[0])
+    finish_data(data[1], outfile[1])
 
 if __name__ == '__main__':
-    preprocess('tsukuyomi_normal')
-    test('tsukuyomi_normal')
-    #test('tsuchiya_normal')
-    #preprocess('tsuchiya_normal')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dataset')
+    args = parser.parse_args()
+
+    if args.dataset == 'css10ja':
+        process_css10ja()
+    else:
+        preprocess_jvs(args.dataset)

@@ -19,6 +19,7 @@ class TransformerModel(nn.Module):
         self.transformer_decoder = TransformerDecoder(decoder_layers, nlayers)
         self.bottom = nn.Linear(nout, ninp)
         self.top = nn.Linear(ninp, nout)
+        self.dropout = nn.Dropout(p=dropout)
 
         self.init_weights()
 
@@ -39,11 +40,12 @@ class TransformerModel(nn.Module):
         src = self.encoder(src) * math.sqrt(self.ninp)
         src = self.pos_encoder(src)
         memory = self.transformer_encoder(src, src_key_padding_mask=src_key_padding_mask)
-        output = torch.relu(self.bottom(tgt))
+        output = torch.tanh(self.bottom(tgt))
         output = self.pos_encoder(output)
         output = self.transformer_decoder(output, memory, tgt_mask=tgt_mask, memory_key_padding_mask=src_key_padding_mask)
-        output = torch.tanh(output)
-        output = torch.tanh(self.top(output))
+        output = torch.relu(output)
+        output = self.dropout(output)
+        output = self.top(output)
         return output
 
 class PositionalEncoding(nn.Module):
