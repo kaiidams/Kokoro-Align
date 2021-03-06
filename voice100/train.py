@@ -6,9 +6,10 @@ import torch.nn as nn
 import numpy as np
 import argparse
 import os
+import shutil
 import math
 
-from .model import TransformerModel
+from .model import Voice100Model
 
 def readdata(file):
     f = np.load(file)
@@ -87,14 +88,19 @@ nhid = 400 # the dimension of the feedforward network model in nn.TransformerEnc
 nlayers = 4 # the number of nn.TransformerEncoderLayer in nn.TransformerEncoder
 nhead = 4 # the number of heads in the multiheadattention models
 dropout = 0.2 # the dropout value
-model = TransformerModel(ntokens, emsize, vosize, nhead, nhid, nlayers, dropout).to(device)
+model = Voice100Model(ntokens, emsize, vosize, nhead, nhid, nlayers, dropout).to(device)
 
 criterion = nn.MSELoss(reduction='none')
 
 epochs = 20 # The number of epochs
 
+def get_previous_output(output):
+    return torch.cat([
+        torch.zeros_like(output[:1, :, :]),
+        output[:-1, :, :]], axis=0)
+
 import time
-def train_step():
+def train():
     model.train() # Turn on the train mode
     total_loss = 0.
     start_time = time.time()
@@ -105,10 +111,10 @@ def train_step():
         inputs, targets, inputs_padding_mask, targets_padding_mask = get_batch(train_data, i)
         inputs = torch.transpose(inputs, 0, 1)
         targets = torch.transpose(targets, 0, 1)
-        e0 = torch.cat([torch.zeros_like(targets[:1, :, :]), targets[:-1, :, :]], axis=0)
         targets_mask = model.generate_square_subsequent_mask(targets.shape[0]).to(device)
+        previous_output = get_previous_output(targets)
         optimizer.zero_grad()
-        output = model(inputs, e0, inputs_padding_mask, targets_mask)
+        output = model(inputs, previous_output, inputs_padding_mask, targets_mask)
 
         loss = criterion(output, targets) * loss_weights
         #loss = torch.max(loss, axis=2).values
@@ -146,9 +152,9 @@ def evaluate(eval_model, data_source):
             inputs, targets, inputs_padding_mask, targets_padding_mask = get_batch(data_source, i)
             inputs = torch.transpose(inputs, 0, 1)
             targets = torch.transpose(targets, 0, 1)
-            e0 = torch.cat([torch.zeros_like(targets[:1, :, :]), targets[:-1, :, :]], axis=0)
+            previous_output = get_previous_output(targets)
             targets_mask = model.generate_square_subsequent_mask(targets.shape[0]).to(device)
-            output = eval_model(inputs, e0, inputs_padding_mask, targets_mask)
+            output = eval_model(inputs, previous_output, inputs_padding_mask, targets_mask)
 
             loss = criterion(output, targets) * loss_weights
             #loss = torch.max(loss, axis=2).values
@@ -161,7 +167,7 @@ def evaluate(eval_model, data_source):
     return total_loss / n
 
 
-def train(args):
+def main_worker(args):
     global epoch
     global optimizer
     global scheduler
@@ -170,14 +176,13 @@ def train(args):
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95)
 
     best_val_loss = float("inf")
-    best_model = None
-    os.makedirs('model', exist_ok=True)
-    epochs = 20
-    model.load_state_dict(torch.load(f'model/ckpt_{epochs}.pt', map_location=device))
+    os.makedirs(args.save_dir, exist_ok=True)
+    #epochs = 20
+    #model.load_state_dict(torch.load(f'model/ckpt_{epochs}.pt', map_location=device))
 
     for epoch in range(1, epochs + 1):
         epoch_start_time = time.time()
-        #train_step()
+        train()
         val_loss = evaluate(model, val_data)
         print('-' * 89)
         print('| end of epoch {:3d} | time: {:5.2f}s | '
@@ -185,19 +190,27 @@ def train(args):
                                         val_loss))
         print('-' * 89)
 
-        torch.save(model.state_dict(), f'model/ckpt_{epoch}.pt')
+        checkpoint_path = os.path.join(args.save_dir, f'ckpt_{epoch}.pt')
+        torch.save({
+            'epoch': epoch,
+            'state_dict': model.state_dict(),
+            'best_val_loss': best_val_loss,
+            'optimizer': optimizer.state_dict()
+        }, checkpoint_path)
 
         if val_loss < best_val_loss:
+            best_checkpoint_path = os.path.join(args.save_dir, 'ckpt_best.pt')
+            shutil.copyfile(checkpoint_path, best_checkpoint_path)
             best_val_loss = val_loss
-            best_model = model
 
         scheduler.step()
 
-def test():
+def test(args):
     from .preprocess import writewav, text2feature, feature2wav
     from tqdm import tqdm
-    epochs = 20
-    model.load_state_dict(torch.load(f'model/ckpt_{epochs}.pt', map_location=device))
+    checkpoint_path = os.path.join(args.save_dir, 'ckpt_best.pt')
+    checkpoint = torch.load(f'model/simple/ckpt_best.pt', map_location=device)
+    model.load_state_dict(checkpoint['state_dict'])
     model.eval()
     with torch.no_grad():
         monophone = 'koNnichiwa,ohayo:gozaimasu.'
@@ -229,11 +242,12 @@ if __name__ == '__main__':
     parser.add_argument('--test', action='store_true')
     parser.add_argument('--learning_rate', type=float, default=0.01)
     parser.add_argument('--batch_size', type=int, default=50)
+    parser.add_argument('--save_dir', help='path to save checkpoints', required=True)
     args = parser.parse_args()
     bptt = args.batch_size
     if args.train:
-        train(args)
+        main_worker(args)
     elif args.test:
-        test()
+        test(args)
     else:
         raise ValueError()

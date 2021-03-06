@@ -3,10 +3,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class TransformerModel(nn.Module):
+class Voice100Model(nn.Module):
 
     def __init__(self, ntoken, ninp, nout, nhead, nhid, nlayers, dropout=0.5):
-        super(TransformerModel, self).__init__()
+        super(Voice100Model, self).__init__()
         from torch.nn import TransformerEncoder, TransformerEncoderLayer
         from torch.nn import TransformerDecoder, TransformerDecoderLayer
         self.model_type = 'Transformer'
