@@ -10,31 +10,10 @@ import shutil
 import math
 
 from .model import Voice100Model
+from .dataset import Voice100Dataset
 
-def readdata(file):
-    f = np.load(file)
-    return {k:v for k, v in f.items()}
-
-def getdataitem(data, index):
-    text_start = data['text_index'][index - 1] if index else 0
-    text_end = data['text_index'][index]
-    audio_start = data['audio_index'][index - 1] if index else 0
-    audio_end = data['audio_index'][index]
-    text = data['text_data'][text_start:text_end]
-    audio = data['audio_data'][audio_start:audio_end, :]
-    assert text_start < text_end
-    assert audio_start < audio_end
-    return text, audio
-
-train_data = readdata('data/css10ja_train.npz')
-val_data = readdata('data/css10ja_val.npz')
-scale = np.vstack([
-    train_data['audio_data'].max(axis=0)
-    -train_data['audio_data'].min(axis=0)
-]).max(axis=0)
-np.clip(scale, 1.05, 1000.0, scale)
-#train_data['audio_data'] *= 1 / scale
-#val_data['audio_data'] *= 1 / scale
+train_data = Voice100Dataset('data/css10ja_train.npz')
+val_data = Voice100Dataset('data/css10ja_val.npz')
 
 bptt = None
 
@@ -48,11 +27,11 @@ def get_batch(data, start=-1):
     for i in range(bptt):
         if start >= 0:
             idx = start + i
-            if idx >= len(data['id']):
+            if idx >= len(data):
                 break
         else:
-            idx = random.randrange(0, len(data['id']))
-        text, audio = getdataitem(data, idx)
+            idx = random.randrange(0, len(data))
+        _, text, audio = data[idx]
         inputs.append(text)
         targets.append(audio)
 
@@ -236,7 +215,8 @@ def test(args):
     y = y * (0.8 / y.max())
     writewav('data/test.wav', y, 16000)
 
-if __name__ == '__main__':
+def main():
+    global bptt
     parser = argparse.ArgumentParser()
     parser.add_argument('--train', action='store_true')
     parser.add_argument('--test', action='store_true')
@@ -251,3 +231,6 @@ if __name__ == '__main__':
         test(args)
     else:
         raise ValueError()
+
+if __name__ == '__main__':
+    main()

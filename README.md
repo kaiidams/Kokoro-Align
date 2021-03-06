@@ -16,7 +16,7 @@ https://raw.githubusercontent.com/voice-statistics/voice-statistics.github.com/m
 ## References
 
 - 声優統計コーパス http://voice-statistics.github.io/
-- CSS10 https://github.com/Kyubyong/css10
+- CSS10: A Collection of Single Speaker Speech Datasets for 10 Languages https://github.com/Kyubyong/css10
 - Deep Speech 3 https://arxiv.org/abs/1710.07654
 - Tacotron 2 https://arxiv.org/abs/1712.05884
 - Tacotron https://github.com/keithito/tacotron
