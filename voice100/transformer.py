@@ -225,17 +225,13 @@ class Encoder(tf.keras.layers.Layer):
 
 class Decoder(tf.keras.layers.Layer):
   def __init__(self, num_layers, d_model, num_heads, dff, target_vocab_size,
-               maximum_position_encoding, target_modal, rate=0.1):
+               maximum_position_encoding, rate=0.1):
     super(Decoder, self).__init__()
 
     self.d_model = d_model
     self.num_layers = num_layers
-    self.target_modal = target_modal
     
-    if target_modal == 'text':
-      self.embedding = tf.keras.layers.Embedding(target_vocab_size, d_model)
-    elif target_modal == 'audio':
-      self.pre_layer = tf.keras.layers.Dense(d_model, activation='tanh')
+    self.pre_layer = tf.keras.layers.Dense(d_model, activation='tanh')
     self.pos_encoding = positional_encoding(maximum_position_encoding, d_model)
     
     self.dec_layers = [DecoderLayer(d_model, num_heads, dff, rate) 
@@ -248,10 +244,7 @@ class Decoder(tf.keras.layers.Layer):
     seq_len = tf.shape(x)[1]
     attention_weights = {}
     
-    if self.target_modal == 'text':
-      x = self.embedding(x)  # (batch_size, target_seq_len, d_model)
-    elif self.target_modal == 'audio':
-      x = self.pre_layer(x)  # (batch_size, target_seq_len, d_model)
+    x = self.pre_layer(x)  # (batch_size, target_seq_len, d_model)
     x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
     x += self.pos_encoding[:, :seq_len, :]
     
@@ -269,16 +262,18 @@ class Decoder(tf.keras.layers.Layer):
 
 class Transformer(tf.keras.Model):
   def __init__(self, num_layers, d_model, num_heads, dff, input_vocab_size, 
-               target_vocab_size, pe_input, pe_target, target_modal, rate=0.1):
+               target_vocab_size, pe_input, pe_target, target_audio_dim, rate=0.1):
     super(Transformer, self).__init__()
 
     self.encoder = Encoder(num_layers, d_model, num_heads, dff, 
                            input_vocab_size, pe_input, rate)
 
     self.decoder = Decoder(num_layers, d_model, num_heads, dff, 
-                           target_vocab_size, pe_target, target_modal, rate)
+                           target_vocab_size, pe_target, rate)
 
-    self.final_layer_audio = tf.keras.layers.Dense(target_vocab_size)
+    self.final_layer_align = tf.keras.layers.Dense(target_vocab_size)
+    self.final_layer_audio = tf.keras.layers.Dense(target_audio_dim)
+    self.final_layer_end = tf.keras.layers.Dense(1)
 
   def call(self, inp, tar, training, enc_padding_mask, 
            look_ahead_mask, dec_padding_mask):
@@ -289,9 +284,11 @@ class Transformer(tf.keras.Model):
     dec_output, attention_weights = self.decoder(
         tar, enc_output, training, look_ahead_mask, dec_padding_mask)
     
-    final_output = self.final_layer_audio(dec_output)  # (batch_size, tar_seq_len, target_vocab_size)
+    final_output_align = self.final_layer_align(dec_output)  # (batch_size, tar_seq_len, target_vocab_size)
+    final_output_audio = self.final_layer_audio(dec_output)  # (batch_size, tar_seq_len, target_audio_dim)
+    final_output_end = self.final_layer_end(dec_output)  # (batch_size, tar_seq_len, 1)
     
-    return final_output, attention_weights
+    return final_output_align, final_output_audio, final_output_end, attention_weights
 
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
   def __init__(self, d_model, warmup_steps=4000):

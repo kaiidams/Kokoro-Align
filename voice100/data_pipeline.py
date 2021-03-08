@@ -16,8 +16,10 @@ def _getdataitem(data, index):
   audio = data['audio_data'][audio_start:audio_end, :]
   assert text_start < text_end
   assert audio_start < audio_end
-  alignment = get_alignment_text(text, audio)
-  return id_, text, audio, alignment
+  align = get_alignment_text(text, audio)
+  end = np.zeros_like(align)
+  end[-1] = 1
+  return id_, text, align, audio, end
 
 def get_alignment_text(text, audio):
   a = (len(text) + 2) / len(audio)
@@ -40,8 +42,9 @@ def get_dataset(file, audio_dim, shuffle=False):
     output_signature=(
       tf.TensorSpec(shape=(), dtype=tf.string), # id
       tf.TensorSpec(shape=(None,), dtype=tf.int64), # text
+      tf.TensorSpec(shape=(None,), dtype=tf.int64), # align
       tf.TensorSpec(shape=(None, audio_dim), dtype=tf.float32), # audio
-      tf.TensorSpec(shape=(None,), dtype=tf.int64))) # align
+      tf.TensorSpec(shape=(None,), dtype=tf.int64))) # end
 
 def get_input_fn(params, is_train):
   if is_train:
@@ -49,37 +52,21 @@ def get_input_fn(params, is_train):
   else:
     ds = get_dataset('data/css10ja_val.npz', params['audio_dim'])
 
-  target_modal = params['target_modal']
-  if target_modal == 'text':
-    ds = ds.map(lambda id_, text, audio, align: (text, align,
-      tf.zeros(tf.shape(text)[0], dtype=tf.float32),
-      tf.zeros(tf.shape(align)[0], dtype=tf.float32)))
-    ds = ds.padded_batch(
-        params['batch_size'],
-        padding_values=(
-          tf.constant(0, dtype=tf.int64),
-          tf.constant(0, dtype=tf.int64),
-          tf.constant(1.0, dtype=tf.float32),
-          tf.constant(1.0, dtype=tf.float32),
-          ),
-        drop_remainder=False
-    )
-  elif target_modal == 'audio': 
-    ds = ds.map(lambda  id_, text, audio, align: (text, audio,
-      tf.zeros(tf.shape(text)[0], dtype=tf.float32),
-      tf.zeros(tf.shape(audio)[0], dtype=tf.float32)))
-    ds = ds.padded_batch(
-        params['batch_size'],
-        padding_values=(
-          tf.constant(0, dtype=tf.int64),
-          tf.constant(0.0, dtype=tf.float32),
-          tf.constant(1.0, dtype=tf.float32),
-          tf.constant(1.0, dtype=tf.float32),
-          ),
-        drop_remainder=False
-    )
-  else:
-    raise ValueError(f'Unknown target_model {target_modal}')
+  ds = ds.map(lambda id_, text, align, audio, end: (text, align, audio, end,
+    tf.zeros(tf.shape(text)[0], dtype=tf.float32),
+    tf.zeros(tf.shape(audio)[0], dtype=tf.float32)))
+  ds = ds.padded_batch(
+      params['batch_size'],
+      padding_values=(
+        tf.constant(0, dtype=tf.int64), # text
+        tf.constant(0, dtype=tf.int64), # align
+        tf.constant(0.0, dtype=tf.float32), # audio
+        tf.constant(0, dtype=tf.int64), # end
+        tf.constant(1.0, dtype=tf.float32), # text_mask
+        tf.constant(1.0, dtype=tf.float32), # audio_mask
+        ),
+      drop_remainder=False
+  )
 
   return ds
 
