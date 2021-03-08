@@ -12,11 +12,11 @@ setup(
     long_description="Voice100 is a small TTS for Japanese.",
     entry_points={
         "console_scripts": {
-            "voice100-train = voice100.train:main"
+            "voice100-train = voice100.train:cli_main"
         }
     },
     install_requires=[
-        'torch'
+        'tensorflow'
     ],
     extras_require={
         "preprocess": [
