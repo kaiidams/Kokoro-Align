@@ -24,9 +24,9 @@ WAVTEST_PATH = 'data/%s_synthesized/%s_%s.wav'
 
 SAMPLE_RATE = 16000
 
-vocab = list(' .,?:Nabcdefghijkmnopqrstuwyz')
+vocab = list('.,?:Nabcdefghijkmnopqrstuwyz')
 v2i = {v: i for i, v in enumerate(vocab)}
-assert len(v2i) == 29
+assert len(v2i) == 28
 
 normparams = np.array([
     [282.67361826246565, 236.92293935472185],
@@ -67,6 +67,12 @@ def readcorpus(file):
             id_, _, _, monophone = parts
             monophone = monophone.replace('/', '').replace(',', '')
             corpus.append((id_, monophone))
+
+    if False:
+        vocab = set(''.join([monophone for _, monophone in corpus]))
+        vocab = sorted(list(vocab))
+        assert vocab == list(':Nabcdefghijkmnopqrstuwyz')
+        v2i = {v: i for i, v in enumerate(vocab)}
 
     return corpus
 
