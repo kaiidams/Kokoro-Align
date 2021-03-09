@@ -5,6 +5,23 @@
 - Don't depend non-commercially licensed dataset
 - Small enough to run on normal PCs, Raspberry Pi or smartphones.
 
+## How to train
+
+### Preprocessing
+
+Get CSS10 Japanese corpus and extract the data under `./data`.
+`./data/japanese-single-speaker-speech-dataset/transcript.txt` should be
+the path to the transcript data.
+
+Run the preprocess,
+
+```
+$ python -m voice100.preprocess --dataset css10ja
+```
+
+This generates `data/css10ja_train.npz` and `data/css10ja_val.npz` 
+
+
 ## Data
 
 https://raw.githubusercontent.com/voice-statistics/voice-statistics.github.com/master/assets/doc/balance_sentences.txt

@@ -68,12 +68,6 @@ def readcorpus(file):
             monophone = monophone.replace('/', '').replace(',', '')
             corpus.append((id_, monophone))
 
-    if False:
-        vocab = set(''.join([monophone for _, monophone in corpus]))
-        vocab = sorted(list(vocab))
-        assert vocab == list(':Nabcdefghijkmnopqrstuwyz')
-        v2i = {v: i for i, v in enumerate(vocab)}
-
     return corpus
 
 def readcorpus_css10ja(file):
