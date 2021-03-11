@@ -231,7 +231,8 @@ class Decoder(tf.keras.layers.Layer):
     self.d_model = d_model
     self.num_layers = num_layers
     
-    self.pre_layer = tf.keras.layers.Dense(d_model, activation='tanh')
+    self.embedding = tf.keras.layers.Embedding(target_vocab_size, d_model)
+    #self.pre_layer = tf.keras.layers.Dense(d_model, activation='tanh')
     self.pos_encoding = positional_encoding(maximum_position_encoding, d_model)
     
     self.dec_layers = [DecoderLayer(d_model, num_heads, dff, rate) 
@@ -244,7 +245,8 @@ class Decoder(tf.keras.layers.Layer):
     seq_len = tf.shape(x)[1]
     attention_weights = {}
     
-    x = self.pre_layer(x)  # (batch_size, target_seq_len, d_model)
+    x = self.embedding(x)  # (batch_size, input_seq_len, d_model)
+    #x = self.pre_layer(x)  # (batch_size, target_seq_len, d_model)
     x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
     x += self.pos_encoding[:, :seq_len, :]
     

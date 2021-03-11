@@ -12,7 +12,7 @@ class Voice100Task(object):
   def __init__(self, flags_obj):
     self.flags_obj = flags_obj
     self.params = dict(
-      vocab_size=28,
+      vocab_size=29,
       audio_dim=27,
       hidden_size=128,
       num_hidden_layers=4,
@@ -20,7 +20,7 @@ class Voice100Task(object):
       filter_size=512,
       dropout=0.1,
       batch_size=50,
-      num_epochs=100,
+      num_epochs=300,
     )
 
   def create_model(self):
@@ -156,18 +156,22 @@ class Voice100Task(object):
 
     train_step_signature = [
         tf.TensorSpec(shape=(None, None), dtype=tf.int64),
+        tf.TensorSpec(shape=(None,), dtype=tf.int32),
         tf.TensorSpec(shape=(None, None), dtype=tf.int64),
         tf.TensorSpec(shape=(None, None, params['audio_dim']), dtype=tf.float32),
         tf.TensorSpec(shape=(None, None), dtype=tf.int64),
-        tf.TensorSpec(shape=(None, None), dtype=tf.float32),
-        tf.TensorSpec(shape=(None, None), dtype=tf.float32),
+        tf.TensorSpec(shape=(None,), dtype=tf.int32),
     ]
 
     @tf.function(input_signature=train_step_signature)
-    def train_step(inp, tgt_align, tgt_audio, tgt_end, inp_mask, tar_mask):
-      tgt_input = tgt_audio[:, :-1]
-      tgt_align_real = tgt_align[:, 1:]
-      tgt_audio_real = tgt_audio[:, 1:]
+    def train_step(inp, text_len, align, audio, tgt_end, audio_len):
+      text_mask = tf.sequence_mask(text_len, maxlen=tf.shape(inp)[1])
+      inp_mask = tf.cast(tf.logical_not(text_mask), tf.float32)
+      audio_mask = tf.sequence_mask(audio_len, maxlen=tf.shape(align)[1])
+      tar_mask = tf.cast(tf.logical_not(audio_mask), tf.float32)
+      tgt_input = align[:, :-1]
+      tgt_align_real = align[:, 1:]
+      tgt_audio_real = audio[:, 1:]
       tgt_end_real = tgt_end[:, 1:]
       
       enc_padding_mask = inp_mask[:, tf.newaxis, tf.newaxis, :]
@@ -227,22 +231,31 @@ class Voice100Task(object):
 
       print(f'Time taken for 1 epoch: {time.time() - start:.2f} secs\n')
 
-  def predict_step(self, model, src, tgt_align, tgt_audio, tgt_end, src_mask, tgt_mask, max_length=300):
+  def predict_step(self, model, text, text_len, tgt_align, tgt_audio, tgt_end, audio_len, max_length=300):
 
-    output_align = tf.zeros([1, 1], dtype=tf.int64)
-    output_audio = tf.zeros([1, 1, self.params['audio_dim']], dtype=tf.float32)
-    
-    for i in range(max_length):
-      print(i)
+    flags_obj = self.flags_obj
+    params = self.params
 
-      enc_padding_mask = src_mask[:, tf.newaxis, tf.newaxis, :]
-      dec_padding_mask = src_mask[:, tf.newaxis, tf.newaxis, :]
+    predict_one_signature = [
+        tf.TensorSpec(shape=(None, None), dtype=tf.int64),
+        tf.TensorSpec(shape=(None,), dtype=tf.int32),
+        tf.TensorSpec(shape=(None, None), dtype=tf.int64),
+        tf.TensorSpec(shape=(None, None, params['audio_dim']), dtype=tf.float32),
+    ]
+
+    @tf.function(input_signature=predict_one_signature)
+    def predict_one(text, text_len, output_align, output_audio):
+      text_mask = tf.sequence_mask(text_len, maxlen=tf.shape(text)[1])
+      text_mask = tf.cast(tf.logical_not(text_mask), tf.float32)
+      enc_padding_mask = text_mask[:, tf.newaxis, tf.newaxis, :]
+      dec_padding_mask = text_mask[:, tf.newaxis, tf.newaxis, :]
+
       look_ahead_mask = create_look_ahead_mask(tf.shape(output_audio)[1])
       combined_mask = look_ahead_mask
           
       # predictions.shape == (batch_size, seq_len, vocab_size)
-      tgt_align_pred, tgt_audio_pred, tgt_end_pred, attention_weights = model(src, 
-                                                  output_audio,
+      tgt_align_pred, tgt_audio_pred, tgt_end_pred, attention_weights = model(text, 
+                                                  output_align,
                                                   False,
                                                   enc_padding_mask,
                                                   combined_mask,
@@ -254,6 +267,17 @@ class Voice100Task(object):
       tgt_end_pred = tgt_end_pred[:, -1:, :]  # (batch_size, 1, vocab_size)
 
       tgt_align_pred_id = tf.argmax(tgt_align_pred, axis=-1) # (batch_size, 1)
+
+      return tgt_align_pred_id, tgt_audio_pred, tgt_end_pred, attention_weights
+
+    output_align = tf.zeros([1, 1], dtype=tf.int64)
+    #output_audio = tf.zeros([1, 1, self.params['audio_dim']], dtype=tf.float32)
+    output_audio = tgt_audio[:1, :1, :]
+
+    for i in range(max_length):
+      print(f'\rStep {i}', end='')
+
+      tgt_align_pred_id, tgt_audio_pred, tgt_end_pred, attention_weights = predict_one(text, text_len, output_align, output_audio)
 
       # concatentate the predicted_id to the output which is given to the decoder
       # as its input.
@@ -282,7 +306,7 @@ class Voice100Task(object):
 
     # if a checkpoint exists, restore the latest checkpoint.
     if ckpt_manager.latest_checkpoint:
-      ckpt.restore(ckpt_manager.latest_checkpoint)
+      ckpt.restore(ckpt_manager.latest_checkpoint).expect_partial()
       print ('Latest checkpoint restored!!')
     else:
       raise ValueError()
@@ -305,6 +329,7 @@ class Voice100Task(object):
       #print(encoder_input)
       #print(output)
       #print(attention_weights)
+      break
 
     print('done')
 
