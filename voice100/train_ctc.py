@@ -1,3 +1,5 @@
+# Copyright (C) 2021 Katsuya Iida. All rights reserved.
+
 from absl import app
 from absl import flags
 from absl import logging

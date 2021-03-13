@@ -1,3 +1,5 @@
+# Copyright (C) 2021 Katsuya Iida. All rights reserved.
+
 import re
 
 _CSS_DOUBLE_RX = re.compile(r'([^-aiueo])\1')

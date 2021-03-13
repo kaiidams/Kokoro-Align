@@ -1,3 +1,5 @@
+# Copyright (C) 2021 Katsuya Iida. All rights reserved.
+
 import MeCab
 from ._yomi2voca import yomi2voca
 
