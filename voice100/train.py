@@ -14,7 +14,7 @@ class Voice100Task(object):
   def __init__(self, flags_obj):
     self.flags_obj = flags_obj
     self.params = dict(
-      dataset='css10ja', #'tsukuyomi_normal',
+      dataset=flags_obj.dataset,
       vocab_size=29,
       audio_dim=27,
       hidden_size=128,
@@ -370,6 +370,10 @@ def define_voice100_flags():
       short_name="md",
       default="/tmp",
       help="The location of the model checkpoint files.")
+  flags.DEFINE_string(
+      name='dataset',
+      default='css10ja',
+      help='Dataset to use')
   flags.DEFINE_string(
       name='mode',
       default='train',
