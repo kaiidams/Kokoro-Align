@@ -11,9 +11,10 @@ setup(
     packages=['voice100'],
     long_description="Voice100 is a small TTS for Japanese.",
     entry_points={
-        "console_scripts": {
-            "voice100-train = voice100.train:cli_main"
-        }
+        "console_scripts": [
+            "voice100-preprocess = voice100.preprocess",
+            "voice100-train = voice100.train"
+        ]
     },
     install_requires=[
         'tensorflow'
@@ -23,7 +24,7 @@ setup(
             #'mecab-python3',
             #'unidic-lite',
             'librosa',
-            'soundfile'
+            'soundfile',
             'pyworld>=0.2.12',
             'pysptk>=0.1.18',
             'tqdm'

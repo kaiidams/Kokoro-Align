@@ -19,8 +19,23 @@ Run the preprocess,
 $ python -m voice100.preprocess --dataset css10ja
 ```
 
-This generates `data/css10ja_train.npz` and `data/css10ja_val.npz` 
+This generates `data/css10ja_train.npz` and `data/css10ja_val.npz`
 
+### Training alighment model
+
+![Training CTC](./docs/train_ctc.png)
+
+The alignment model align text and audio of the dataset.
+
+```
+$ python -m voice100.train_ctc --mode train --dataset css10ja --model_dir model/ctc
+```
+
+### Estimate alighment
+
+```
+$ python -m voice100.train_ctc --mode convert --dataset css10ja --model_dir model/ctc
+```
 
 ## Data
 

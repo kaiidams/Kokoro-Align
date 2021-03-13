@@ -66,9 +66,10 @@ class Voice100CTCTask(object):
   def __init__(self, flags_obj):
     self.flags_obj = flags_obj
     self.params = dict(
+      dataset=flags_obj.dataset,
       batch_size=128, audio_dim=27, vocab_size=29,
       hidden_dim=128, learning_rate=0.001,
-      num_epochs=40)
+      num_epochs=50)
 
   def create_model(self):
     params = self.params
@@ -117,12 +118,31 @@ class Voice100CTCTask(object):
     ckpt = tf.train.Checkpoint(model=model, optimizer=optimizer)
     ckpt_manager = tf.train.CheckpointManager(ckpt, flags_obj.model_dir, max_to_keep=5)
 
-    for epoch in range(params['num_epochs']):
+    # if a checkpoint exists, restore the latest checkpoint.
+    if ckpt_manager.latest_checkpoint:
+      ckpt.restore(ckpt_manager.latest_checkpoint)
+      print ('Latest checkpoint restored!!')
+      print(f'{ckpt_manager.latest_checkpoint}')
+      start_epoch = ckpt.save_counter.numpy()
+
+    log_dir = flags_obj.model_dir
+    summary_writer = tf.summary.create_file_writer(log_dir)
+
+    train_loss = tf.keras.metrics.Mean(name='train_loss')
+
+    for epoch in range(start_epoch, params['num_epochs']):
+
+      train_loss.reset_states()
+
       for batch, example in enumerate(train_ds):
         loss = train_step(*example).numpy()
-        if batch % 10 == 0:
-          print(f'Batch {batch} Loss {loss}')
- 
+        train_loss(loss)
+
+      with summary_writer.as_default():
+        tf.summary.scalar('loss', train_loss.result(), step=epoch)
+
+      print(f'Epoch {epoch} Loss {train_loss.result():.4f}')
+
       ckpt_save_path = ckpt_manager.save()
       print (f'Saving checkpoint for epoch {epoch+1} at {ckpt_save_path}')
   
@@ -224,7 +244,8 @@ class Voice100CTCTask(object):
         print(f'Batch {batch}')
     align_data = np.concatenate(align_data, axis=0)
     align_index = np.array(align_index, dtype=np.int)
-    np.savez('data/css10ja_train_align.npz', align_data=align_data, align_index=align_index)
+    np.savez('data/%s_train_align.npz' % params['dataset'],
+      align_data=align_data, align_index=align_index)
 
 def main(_):
   flags_obj = flags.FLAGS
@@ -248,6 +269,10 @@ if __name__ == '__main__':
       short_name="md",
       default="/tmp",
       help="The location of the model checkpoint files.")
+  flags.DEFINE_string(
+      name='dataset',
+      default='css10ja',
+      help='Dataset to use')
   flags.DEFINE_string(
       name='mode',
       default='train',

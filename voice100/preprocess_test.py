@@ -1,21 +1,14 @@
-def verify_jvs(name, fs=SAMPLE_RATE):
-    output_file = OUTPUT_PATH % name
-    with open(output_file, 'rb') as f:
-        data = pickle.load(f)
-    print(len(data['text']))
-    print(len(data['audio']))
-    for i in tqdm(range(10)):
-        id_ = data['id'][i]
-        x = feature2wav(data['audio'][i])
-        file = WAVTEST_PATH % (name, name, id_)
-        os.makedirs(os.path.dirname(file), exist_ok=True)
-        writewav(file, x, fs)
+import soundfile as sf
+import os
+import numpy as np
+from tqdm import tqdm
+from .vocoder import writewav, decode_audio
+from .encoder import decode_text
 
-def verify_css10ja(name='css10ja'):
-    fs = 16000
-    file = 'data/css10ja_train.npz'
+def test_data(name='css10ja'):
+    file = 'data/%s_train.npz' % name
     f = np.load(file)
-    data = {k:v for k, v in f.items()}
+    data = {k: v for k, v in f.items()}
     for index in tqdm(range(10)):
         text_start = data['text_index'][index - 1] if index else 0
         text_end = data['text_index'][index]
@@ -23,8 +16,14 @@ def verify_css10ja(name='css10ja'):
         audio_end = data['audio_index'][index]
         text = data['text_data'][text_start:text_end]
         audio = data['audio_data'][audio_start:audio_end, :]
-        print(feature2text(text))
-        x = feature2wav(audio)
-        file = 'data/%s_synthesized/meian_%04d.wav' % (name, index)
+        print(decode_text(text))
+        x = decode_audio(audio)
+        file = 'data/synthesized/%s_%04d.wav' % (name, index)
         os.makedirs(os.path.dirname(file), exist_ok=True)
-        writewav(file, x, fs)
+        writewav(file, x)
+
+def main():
+    test_data('tsukuyomi_normal')
+
+if __name__ == '__main__':
+    main()

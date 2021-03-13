@@ -12,6 +12,7 @@ class Voice100Task(object):
   def __init__(self, flags_obj):
     self.flags_obj = flags_obj
     self.params = dict(
+      dataset='css10ja', #'tsukuyomi_normal',
       vocab_size=29,
       audio_dim=27,
       hidden_size=128,
@@ -126,13 +127,17 @@ class Voice100Task(object):
     # if a checkpoint exists, restore the latest checkpoint.
     if ckpt_manager.latest_checkpoint:
       ckpt.restore(ckpt_manager.latest_checkpoint)
-      print ('Latest checkpoint restored!!')
+      print('Latest checkpoint restored!!')
+      print(f'{ckpt_manager.latest_checkpoint}')
       start_epoch = ckpt.save_counter.numpy() * 10
     else:
       start_epoch = 0
       if flags_obj.init_checkpoint:
         ckpt.restore(flags_obj.init_checkpoint)
         print('Loaded from initial checkpoint.')
+
+    log_dir = flags_obj.model_dir
+    summary_writer = tf.summary.create_file_writer(log_dir)
 
     loss_function_align = self.create_loss_function_text()
     loss_function_audio = self.create_loss_function_audio()
@@ -224,6 +229,13 @@ class Voice100Task(object):
         ckpt_save_path = ckpt_manager.save()
         print (f'Saving checkpoint for epoch {epoch+1} at {ckpt_save_path}')
         
+      with summary_writer.as_default():
+        tf.summary.scalar('train_loss_align', train_loss_align.result(), step=epoch)
+        tf.summary.scalar('train_loss_audio', train_loss_audio.result(), step=epoch)
+        tf.summary.scalar('train_loss_end', train_loss_end.result(), step=epoch)
+        tf.summary.scalar('train_accuracy_align', train_accuracy_align.result(), step=epoch)
+        tf.summary.scalar('train_accuracy_end', train_accuracy_end.result(), step=epoch)
+
       print(f'Epoch {epoch + 1}')
       print(f'Align Loss {train_loss_align.result():.4f} Accuracy {train_accuracy_align.result():.4f}')
       print(f'Audio Loss {train_loss_audio.result():.4f}')
@@ -231,7 +243,7 @@ class Voice100Task(object):
 
       print(f'Time taken for 1 epoch: {time.time() - start:.2f} secs\n')
 
-  def predict_step(self, model, text, text_len, tgt_align, tgt_audio, tgt_end, audio_len, max_length=300):
+  def predict_step(self, model, text, text_len, tgt_align, tgt_audio, tgt_end, audio_len, max_length=400):
 
     flags_obj = self.flags_obj
     params = self.params
@@ -264,9 +276,10 @@ class Voice100Task(object):
       # select the last word from the seq_len dimension
       tgt_align_pred = tgt_align_pred[:, -1:, :]  # (batch_size, 1, vocab_size)
       tgt_audio_pred = tgt_audio_pred[:, -1:, :]  # (batch_size, 1, audio_dim)
-      tgt_end_pred = tgt_end_pred[:, -1:, :]  # (batch_size, 1, vocab_size)
+      tgt_end_pred = tgt_end_pred[:, -1:, :]  # (batch_size, 1, 1)
 
       tgt_align_pred_id = tf.argmax(tgt_align_pred, axis=-1) # (batch_size, 1)
+      tgt_end_pred = tf.sigmoid(tgt_end_pred)
 
       return tgt_align_pred_id, tgt_audio_pred, tgt_end_pred, attention_weights
 
@@ -285,13 +298,16 @@ class Voice100Task(object):
       output_audio = tf.concat([output_audio, tgt_audio_pred], axis=1)
 
       # return the result if the predicted_id is equal to the end token
-      if tf.reduce_any(tgt_end_pred > 0.1):
+      if tf.reduce_any(tgt_end_pred > 0.6) and i > 30:
         break
 
     return output_align, output_audio, attention_weights
 
   def predict(self):
-    from .preprocess import feature2wav, feature2text, writewav
+    import soundfile as sf
+    from .vocoder import decode_audio
+    from .encoder import decode_text
+    from .data_pipeline import unnormalize
 
     flags_obj = self.flags_obj
     params = self.params
@@ -314,21 +330,22 @@ class Voice100Task(object):
     eval_ds = eval_input_fn(params)
 
     for batch, example in enumerate(eval_ds):
-      t = feature2text(example[0][0])
+      t = decode_text(example[0][0])
       print(t)
       output_align, output_audio, attention_weights = self.predict_step(model, *example)
-      a = feature2text(output_align.numpy()[0])
+      a = decode_text(output_align.numpy()[0])
       print(a)
-      x = feature2wav(output_audio.numpy()[0])
+      x = output_audio.numpy()[0]
+      x = unnormalize(x)
+      x = decode_audio(x)
       attention_weights = {
         k: v.numpy()
         for k, v in attention_weights.items()
       }
-      np.savez('data/test.npz', x=x, t=t, a=a, **attention_weights)
-      writewav('data/test.wav', x, 16000)
-      #print(encoder_input)
-      #print(output)
-      #print(attention_weights)
+      output_file = 'data/predict/%s_%s.wav' % (params['dataset'], batch)
+      os.makedirs(os.path.dirname(output_file), exist_ok=True)
+      np.savez('data/predict/%s_%s.npz' % (params['dataset'], batch), x=x, t=t, a=a, **attention_weights)
+      sf.write(output_file, x, 16000, 'PCM_16')
       break
 
     print('done')
