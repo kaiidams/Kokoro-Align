@@ -5,6 +5,11 @@
 - Don't depend non-commercially licensed dataset
 - Small enough to run on normal PCs, Raspberry Pi or smartphones.
 
+# Sample synthesis
+
+- [Sample synthesis 1 (From eval datset)](docs/sample1.wav)
+- [Sample synthesis 2 (From JVS corpus)](docs/sample2.wav)
+
 ## How to train
 
 ### Preprocessing
@@ -33,9 +38,25 @@ $ python -m voice100.train_ctc --mode train --dataset css10ja --model_dir model/
 
 ### Estimate alighment
 
+This makes `data/css10ja_train_aligh.npz`.
+
 ```
 $ python -m voice100.train_ctc --mode convert --dataset css10ja --model_dir model/ctc
 ```
+
+### Train TTS model
+
+TTS model is a plain Transformer with multitask of three tasks,
+predicting alignment, audio and end of audio.
+
+```
+$ python -m voice100.train_ctc --mode train --model_dir model/audio
+```
+
+It takes 3.5 hours with T4 to train 239 epochs.
+
+![train_loss_align](./docs/train_loss_align.png)
+![train_loss_audio](./docs/train_loss_audio.png)
 
 ## Data
 
