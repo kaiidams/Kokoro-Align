@@ -23,7 +23,7 @@ class Voice100Task(object):
       filter_size=512,
       dropout=0.1,
       batch_size=50,
-      num_epochs=300,
+      num_epochs=flags_obj.num_epochs,
     )
 
   def create_model(self):
@@ -374,6 +374,10 @@ def define_voice100_flags():
       name='dataset',
       default='css10ja',
       help='Dataset to use')
+  flags.DEFINE_integer(
+      name='num_epochs',
+      default=500,
+      help='Number of epochs to train')
   flags.DEFINE_string(
       name='mode',
       default='train',
