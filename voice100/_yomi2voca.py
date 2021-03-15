@@ -310,7 +310,10 @@ _CONVRULES = [
     'ぉ/ o',
 
 #その他特別なルール
-    'を/ o'
+    'を/ o',
+
+    '、/ .',
+    '。/ ,'
 ]
 
 _COLON_RX = re.compile(':+')
@@ -350,6 +353,7 @@ def yomi2voca(text: str) -> str:
             res += x
             continue
         res += text[0]
+        text = text[1:]
     res = _COLON_RX.sub(':', res)
     if _REJECT_RX.match(res):
         raise ValueError('Invalid characters in yomi.')

@@ -20,7 +20,10 @@ def getyomi(text):
         if line == 'EOS':
             break
         parts = line.split('\t')
-        res += parts[1]
+        if parts[0] == '。' or parts[0] == '、':
+            res += parts[0]
+        else:
+            res += parts[1]
     return res
 
 def text2voca(text: str) -> str:
