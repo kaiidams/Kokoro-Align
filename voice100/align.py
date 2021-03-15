@@ -59,6 +59,7 @@ class IndexDataArray:
             data=np.concatenate(self.data, axis=0))
 
 def test(filespec):
+    import librosa
     sr = 22050
     window_size = 512 # 46ms
     minimum_silent_duration = 0.5
