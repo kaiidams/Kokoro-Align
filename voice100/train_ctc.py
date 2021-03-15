@@ -126,6 +126,8 @@ class Voice100CTCTask(object):
       print ('Latest checkpoint restored!!')
       print(f'{ckpt_manager.latest_checkpoint}')
       start_epoch = ckpt.save_counter.numpy()
+    else:
+      start_epoch = 0
 
     log_dir = flags_obj.model_dir
     summary_writer = tf.summary.create_file_writer(log_dir)
