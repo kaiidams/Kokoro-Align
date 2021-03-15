@@ -41,7 +41,7 @@ def _readdata(file, align_file):
     with np.load(align_file) as f:
       data['align_data'] = f['align_data']
       assert np.all(data['audio_index'] == f['align_index'])
-  data['audio_data'] = (data['audio_data'] - NORMPARAMS[:, 0]) / NORMPARAMS[:, 1]
+  #data['audio_data'] = (data['audio_data'] - NORMPARAMS[:, 0]) / NORMPARAMS[:, 1]
   return data
 
 def _getdataitem(data, index, vocab_size):

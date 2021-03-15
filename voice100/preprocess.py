@@ -162,12 +162,12 @@ def preprocess_css10ja(name):
         file = os.path.join('data', 'japanese-single-speaker-speech-dataset', id_)
         assert '..' not in file # Just make sure it is under the current directory.
         cache_file = os.path.join('data', 'cache', name, id_.replace('.wav', '.npz'))
-        if os.path.exists(cache_file):
+        if False and os.path.exists(cache_file):
             audio = np.load(cache_file, allow_pickle=True)['arr_0']
             assert audio.shape[0] > 0
         else:
             x = readwav(file)
-            audio = encode_audio(x, f0_floor, f0_ceil, pitchshift=pitchshift)
+            audio = encode_audio(x)
             os.makedirs(os.path.dirname(cache_file), exist_ok=True)
             np.savez(cache_file, audio)
 
