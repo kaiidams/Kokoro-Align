@@ -1,3 +1,5 @@
+# Copyright (C) 2021 Katsuya Iida. All rights reserved.
+
 from voice100._text2voca import text2voca
 from bs4 import BeautifulSoup
 
