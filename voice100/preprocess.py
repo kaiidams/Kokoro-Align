@@ -115,10 +115,11 @@ class IndexDataArray:
     def append(self, data):
         self.current += data.shape[0]
         self.index.append(self.current)
-        self.data.append(data)
+        print(data.shape)
+        self.data.append(data.astype(np.float32))
 
     def finish(self):
-        index = np.concatenate(self.index, axis=0)
+        index = np.array(self.index, dtype=np.int32)
         data = np.concatenate(self.data, axis=0)
         np.savez(self.file, index=index, data=data)
 
@@ -136,7 +137,7 @@ def preprocess_css10ja(name):
     audio_array = IndexDataArray(AUDIO_PATH % (name, 16000))
 
     corpus = readcorpus_css10ja(CORPUSDATA_CSS10JA_PATH)
-    for id_, monophone in tqdm(corpus):
+    for id_, monophone in tqdm(corpus[:10]):
 
         if not monophone:
             print('Skipping: <empty>')
