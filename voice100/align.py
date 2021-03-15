@@ -4,7 +4,7 @@ from glob import glob
 
 from .vocoder import encode_audio
 
-def split_voiced(x, silent_threshold, minimum_silent_frames, padding_frames, window_size):
+def split_voiced(x, minimum_silent_frames, padding_frames, window_size):
     assert(2 * padding_frames < minimum_silent_frames)
     
     num_frames = len(x) // window_size
