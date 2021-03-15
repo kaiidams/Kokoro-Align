@@ -42,23 +42,6 @@ def split_voiced(x, minimum_silent_frames, padding_frames, window_size):
     
     return voiced_ranges + np.array([[-padding_frames, padding_frames]])
 
-class IndexDataArray:
-    def __init__(self, file):
-        self.file = file
-        self.current = 0
-        self.index = []
-        self.data = []
-
-    def append(self, data):
-        self.current += data.shape[0]
-        self.index.append(self.current)
-        self.data.append(data)
-
-    def finish(self):
-        index = np.concatenate(self.index, axis=0)
-        data = np.concatenate(self.data, axis=0)
-        np.savez(self.file, index=index, data=data)
-
 def test(filespec):
     import librosa
     from tqdm import tqdm

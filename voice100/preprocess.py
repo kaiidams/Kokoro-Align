@@ -26,7 +26,8 @@ F0_RANGE = {
     'tsukuyomi_normal': (138.7640311667663, 521.2003965068923)
 }
 
-OUTPUT_PATH = 'data/%s_%s.npz'
+TEXT_PATH = 'data/%s_text.npz'
+OUTPUT_PATH = 'data/%s_audio_%d.npz'
 
 def readcorpus(file):
     corpus = []
@@ -104,29 +105,22 @@ def analyze_jvs(name):
         files.append(file)
     analyze_files(name, files)
 
-def make_empty_data():
-    return {
-        'id': [],
-        'text_index': [],
-        'text_data': [],
-        'audio_index': [],
-        'audio_data': []
-    }
+class IndexDataArray:
+    def __init__(self, file):
+        self.file = file
+        self.current = 0
+        self.index = []
+        self.data = []
 
-def append_data(data, id_, text_index, text, audio_index, audio):
-    data['id'].append(id_)
-    data['text_index'].append(text_index)
-    data['text_data'].append(text)
-    data['audio_index'].append(audio_index)
-    data['audio_data'].append(audio)
+    def append(self, data):
+        self.current += data.shape[0]
+        self.index.append(self.current)
+        self.data.append(data)
 
-def finish_data(data, file):
-    data['id'] = np.array(data['id'])
-    data['text_index'] = np.array(data['text_index'], dtype=np.int32)
-    data['text_data'] = np.concatenate(data['text_data'], axis=0)
-    data['audio_index'] = np.array(data['audio_index'], dtype=np.int32)
-    data['audio_data'] = np.concatenate(data['audio_data'], axis=0)
-    np.savez(file, **data)
+    def finish(self):
+        index = np.concatenate(self.index, axis=0)
+        data = np.concatenate(self.data, axis=0)
+        np.savez(self.file, index=index, data=data)
 
 def preprocess_css10ja(name):
 
@@ -138,16 +132,10 @@ def preprocess_css10ja(name):
         pitchshift = None
     f0_floor, f0_ceil = F0_RANGE[name]
 
-    text_index = [0, 0]
-    audio_index = [0, 0]
-    data = [
-        make_empty_data(),
-        make_empty_data(),
-    ]
+    text_array = IndexDataArray(TEXT_PATH % (name,))
+    audio_array = IndexDataArray(AUDIO_PATH % (name, 16000))
 
     corpus = readcorpus_css10ja(CORPUSDATA_CSS10JA_PATH)
-    split_index = 13
-    split_total = 57 # We take 1 in 57 samples aside for validation
     for id_, monophone in tqdm(corpus):
 
         if not monophone:
@@ -171,16 +159,11 @@ def preprocess_css10ja(name):
             os.makedirs(os.path.dirname(cache_file), exist_ok=True)
             np.savez(cache_file, audio)
 
-        split = 0 if split_index else 1
-        text_index[split] += text.shape[0]
-        audio_index[split] += audio.shape[0]
-        append_data(data[split], id_, text_index[split], text, audio_index[split], audio)
+        text_array.append(text)
+        audio_array.append(audio)
 
-        split_index += 1
-        if split_index == split_total: split_index = 0
-
-    finish_data(data[0], OUTPUT_PATH % (name, "train"))
-    finish_data(data[1], OUTPUT_PATH % (name, "val"))
+    text_array.finish()
+    audio_array.finish()
 
 def preprocess_jvs(name):
     corpus = readcorpus(CORPUSDATA_PATH)
