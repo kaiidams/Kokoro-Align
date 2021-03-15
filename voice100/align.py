@@ -75,3 +75,7 @@ def test(filespec):
             audio = encode_audio(y, f0_floor, f0_ceil)
             audio_array.append(audio)
     audio_array.finish()
+
+if __name__ == '__main__':
+    import sys
+    test(sys.argv[1])
