@@ -1,5 +1,9 @@
 # Copyright (C) 2021 Katsuya Iida. All rights reserved.
 
+from glob import glob
+
+from .vocoder import encode_audio
+
 def split_voiced(x, silent_threshold, minimum_silent_frames, padding_frames, window_size):
     assert(2 * padding_frames < minimum_silent_frames)
     
@@ -35,16 +39,39 @@ def split_voiced(x, silent_threshold, minimum_silent_frames, padding_frames, win
         voiced_to_silent = np.append(voiced_to_silent, len(voiced))
     voiced_ranges = np.stack([silent_to_voiced, voiced_to_silent]).T
     
-    return voiced_ranges
+    return voiced_ranges + np.array([[-padding_frames, padding_frames]])
 
-def test():
+class IndexDataArray:
+    def __init__(self, file):
+        self.file = file
+        self.current = 0
+        self.index = []
+        self.data = []
+
+    def append(self, data):
+        self.current += data.shape[0]
+        self.index.append(self.current)
+        self.data.append(data)
+
+    def finish(self):
+        np.savez(file,
+            index=np.concatenate(self.index, axis=0),
+            data=np.concatenate(self.data, axis=0))
+
+def test(filespec):
     window_size = 512 # 46ms
     minimum_silent_duration = 0.5
     padding_duration = 0.05
     minimum_silent_frames = minimum_silent_duration * sr / window_size
     padding_frames = min(1, int(padding_duration * sr // window_size))
 
-    res = []
-    for s, e in split_voiced(x, silent_threshold, minimum_silent_frames, padding_frames, window_size):
-        res.append(x[(s - padding_frames) * window_size: (e + padding_frames) * window_size])
+    f0_floor, f0_ceil = (57.46701428196299, 196.7528135117272)
 
+    audio_array = IndexDataArray('a.npz')
+    for file in sorted(glob(filespec))[:3]:
+        x, sr = librosa.load(file)
+        for s, e in split_voiced(x, silent_threshold, minimum_silent_frames, padding_frames, window_size) * window_size:
+            y = x[s * window_size: e * window_size]
+            audio = encode_audio(y, f0_floor, f0_ceil)
+            audio_array.append(audio)
+    audio_array.finish()
