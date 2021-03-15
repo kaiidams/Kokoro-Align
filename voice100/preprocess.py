@@ -6,7 +6,7 @@ import math
 from tqdm import tqdm
 import argparse
 
-from .vocoder import readwav, estimatef0, encode_audio
+from .vocoder import readwav, encode_audio
 from .encoder import encode_text
 
 CORPUSDATA_PATH = 'data/balance_sentences.txt'
