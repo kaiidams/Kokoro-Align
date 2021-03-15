@@ -1,11 +1,12 @@
 # Copyright (C) 2021 Katsuya Iida. All rights reserved.
 
 from glob import glob
+import numpy as np
 
 from .vocoder import encode_audio
 
 def split_voiced(x, minimum_silent_frames, padding_frames, window_size):
-    assert(2 * padding_frames < minimum_silent_frames)
+    assert 2 * padding_frames < minimum_silent_frames
     
     num_frames = len(x) // window_size
     mX = np.mean(x[:window_size * num_frames].reshape((-1, window_size)) ** 2, axis=1)
