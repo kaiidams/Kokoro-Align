@@ -12,8 +12,8 @@ setup(
     long_description="Voice100 is a small TTS for Japanese.",
     entry_points={
         "console_scripts": [
-            "voice100-preprocess = voice100.preprocess",
-            "voice100-train = voice100.train"
+            "voice100-preprocess = voice100.preprocess:main",
+            "voice100-train = voice100.train:main"
         ]
     },
     install_requires=[
