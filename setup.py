@@ -30,5 +30,6 @@ setup(
         "align": [
             'mecab-python3',
             'unidic-lite',
+            'beautifulsoup4',
         ]
     })

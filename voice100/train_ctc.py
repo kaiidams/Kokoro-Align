@@ -185,7 +185,6 @@ class Voice100CTCTask(object):
 
     ckpt = tf.train.Checkpoint(model=model)
     ckpt_manager = tf.train.CheckpointManager(ckpt, flags_obj.model_dir, max_to_keep=5)
-    ckpt_manager = tf.train.CheckpointManager(ckpt, flags_obj.model_dir, max_to_keep=5)
     if not ckpt_manager.latest_checkpoint:
       raise ValueError()
     ckpt.restore(ckpt_manager.latest_checkpoint).expect_partial()
