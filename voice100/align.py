@@ -74,7 +74,7 @@ def test(filespec):
     for file in sorted(glob(filespec))[:3]:
         x, sr = librosa.load(file)
         for s, e in split_voiced(x, minimum_silent_frames, padding_frames, window_size) * window_size:
-            y = x[s * window_size: e * window_size].astype(np.double)
+            y = x[s:e].astype(np.double)
             print(y.shape)
             audio = encode_audio(y, f0_floor, f0_ceil)
             audio_array.append(audio)
