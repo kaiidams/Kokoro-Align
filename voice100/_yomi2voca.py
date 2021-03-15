@@ -328,7 +328,7 @@ def _makerulemap():
 
 _rulemap1, _rulemap2, _rulemap3 = _makerulemap()
 
-def yomi2voca(text: str) -> str:
+def yomi2voca(text: str, ignore_error: bool) -> str:
     """Convert yomi text to phonemes.
     """
     text = text.strip()
@@ -355,6 +355,9 @@ def yomi2voca(text: str) -> str:
         res += text[0]
         text = text[1:]
     res = _COLON_RX.sub(':', res)
-    if _REJECT_RX.match(res):
-        raise ValueError('Invalid characters in yomi.')
+    if ignore_error:
+        res = _REJECT_RX.sub('', res)
+    else:
+        if _REJECT_RX.match(res):
+            raise ValueError('Invalid characters in yomi.')
     return res[1:]

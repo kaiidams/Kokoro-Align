@@ -26,9 +26,9 @@ def getyomi(text):
             res += parts[1]
     return res
 
-def text2voca(text: str) -> str:
+def text2voca(text: str, ignore_error: bool = False) -> str:
     """Convert text to phonemes.
     """
     kata = getyomi(text)
     hira = kata2hira(kata)
-    return yomi2voca(hira)
+    return yomi2voca(hira, ignore_error=ignore_error)

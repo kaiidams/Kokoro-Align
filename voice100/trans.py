@@ -1,18 +1,18 @@
 from voice100._text2voca import text2voca
 from bs4 import BeautifulSoup
 
-with open('a.html', 'rt', encoding='shift_jis') as f:
-    soup = BeautifulSoup(f, 'html.parser')
-
-body = soup.find('body')
-
 s = ''
 
 def g(text):
-    yomi = text2voca(text)
-    print(yomi)
+    text = text.strip()
+    if text:
+        try:
+            yomi = text2voca(text, ignore_error=True)
+            f.write('%s|%s\n' % (text, yomi))
+        except:
+            print(text)
 
-def f(node):
+def _process_soup(node):
     global s
     if node.name:
         if node.name == 'ruby':
@@ -27,7 +27,20 @@ def f(node):
                 g(s)
                 s = ''    
             for child in node.children:
-                f(child)
+                _process_soup(child)
     else:
         s += node
-f(body)
+
+def main():
+    global f
+
+    with open('data/773_14560.html', 'rt', encoding='shift_jis') as f:
+        soup = BeautifulSoup(f, 'html.parser')
+
+    body = soup.find('body')
+
+    with open('data/kokoro_transcript.txt', 'wt') as f:
+        _process_soup(body)
+
+if __name__ == '__main__':
+    main()
