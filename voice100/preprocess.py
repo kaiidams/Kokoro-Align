@@ -27,7 +27,7 @@ F0_RANGE = {
 }
 
 TEXT_PATH = 'data/%s_text.npz'
-OUTPUT_PATH = 'data/%s_audio_%d.npz'
+AUDIO_PATH = 'data/%s_audio_%d.npz'
 
 def readcorpus(file):
     corpus = []
@@ -109,19 +109,24 @@ class IndexDataArray:
     def __init__(self, file):
         self.file = file
         self.current = 0
-        self.index = []
+        self.indices = []
         self.data = []
 
-    def append(self, data):
-        self.current += data.shape[0]
-        self.index.append(self.current)
-        print(data.shape)
-        self.data.append(data.astype(np.float32))
+    def __enter__(self):
+        return self
 
-    def finish(self):
-        index = np.array(self.index, dtype=np.int32)
+    def write(self, data):
+        self.current += data.shape[0]
+        self.indices.append(self.current)
+        self.data.append(data)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        indices = np.array(self.indices, dtype=np.int32)
         data = np.concatenate(self.data, axis=0)
-        np.savez(self.file, index=index, data=data)
+        np.savez(self.file, indices=indices, data=data)
+
+def open_index_data_for_write(file):
+    return IndexDataArray(file)
 
 def preprocess_css10ja(name):
 
@@ -152,16 +157,16 @@ def preprocess_css10ja(name):
         assert '..' not in file # Just make sure it is under the current directory.
         cache_file = os.path.join('data', 'cache', name, id_.replace('.wav', '.npz'))
         if os.path.exists(cache_file):
-            audio = np.load(cache_file, allow_pickle=True)['arr_0']
+            audio = np.load(cache_file)['audio']
             assert audio.shape[0] > 0
         else:
             x = readwav(file)
             audio = encode_audio(x, f0_floor, f0_ceil, pitchshift=pitchshift)
             os.makedirs(os.path.dirname(cache_file), exist_ok=True)
-            np.savez(cache_file, audio)
+            np.savez(cache_file, audio=audio)
 
-        text_array.append(text)
-        audio_array.append(audio)
+        text_array.append(text.astype(np.int8))
+        audio_array.append(audio.astype(np.float32))
 
     text_array.finish()
     audio_array.finish()

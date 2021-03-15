@@ -45,6 +45,8 @@ def split_voiced(x, minimum_silent_frames, padding_frames, window_size):
 def test(filespec):
     import librosa
     from tqdm import tqdm
+    import os
+    from .preprocess import open_index_data_for_write
     sr = 16000
     window_size = 512 # 46ms
     minimum_silent_duration = 0.5
@@ -54,16 +56,26 @@ def test(filespec):
 
     f0_floor, f0_ceil = (57.46701428196299, 196.7528135117272)
 
-    audio_array = IndexDataArray('kokoro_audio_16000.npz')
-    for file in tqdm(sorted(glob(filespec))[:2]):
-        x, origsr = librosa.load(file)
-        x = librosa.resample(x, origsr, sr)
-        for s, e in split_voiced(x, minimum_silent_frames, padding_frames, window_size) * window_size:
-            y = x[s:e].astype(np.double)
-            audio = encode_audio(y, f0_floor, f0_ceil)
-            audio_array.append(audio)
-    audio_array.finish()
+    with open('data/kokoro_audio_segment.txt', 'w') as f:
+        id_ = 0
+        with open_index_data_for_write('data/kokoro_audio_16000.npz') as data:
+            for file in tqdm(sorted(glob(filespec))[:2]):
+                x, origsr = librosa.load(file)
+                x = librosa.resample(x, origsr, sr)
+                for s, e in split_voiced(x, minimum_silent_frames, padding_frames, window_size) * window_size:
+                    y = x[s:e].astype(np.double)
+                    cache_file = 'data/cache/kokoro/kokoro_%d_16000.npz' % id_
+                    if os.path.exist(cache_file):
+                        with np.load(cache_file) as f:
+                            audio = f['audio']
+                    else:
+                        audio = encode_audio(y, f0_floor, f0_ceil)
+                        os.makedirs(os.path.dirname(cache_file), exist_ok=True)
+                        np.savez(cache_file, audio=audio)
+                    data.write(audio.astype(np.float32))
+                    f.write(f'{id_}|{os.path.basename(filespec)}|{s}|{e}\n')
+                    id_ += 1
 
 if __name__ == '__main__':
     import sys
-    test(sys.argv[1])
+    test('data/kokoro_natsume_um_librivox_64kb_mp3/*.mp3')
