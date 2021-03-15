@@ -55,13 +55,14 @@ class IndexDataArray:
         self.data.append(data)
 
     def finish(self):
-        np.savez(file,
-            index=np.concatenate(self.index, axis=0),
-            data=np.concatenate(self.data, axis=0))
+        index = np.concatenate(self.index, axis=0)
+        data = np.concatenate(self.data, axis=0)
+        np.savez(self.file, index=index, data=data)
 
 def test(filespec):
     import librosa
-    sr = 22050
+    from tqdm import tqdm
+    sr = 16000
     window_size = 512 # 46ms
     minimum_silent_duration = 0.5
     padding_duration = 0.05
@@ -70,12 +71,12 @@ def test(filespec):
 
     f0_floor, f0_ceil = (57.46701428196299, 196.7528135117272)
 
-    audio_array = IndexDataArray('a.npz')
-    for file in sorted(glob(filespec))[:3]:
-        x, sr = librosa.load(file)
+    audio_array = IndexDataArray('kokoro_audio_16000.npz')
+    for file in tqdm(sorted(glob(filespec))[:2]):
+        x, origsr = librosa.load(file)
+        x = librosa.resample(x, origsr, sr)
         for s, e in split_voiced(x, minimum_silent_frames, padding_frames, window_size) * window_size:
             y = x[s:e].astype(np.double)
-            print(y.shape)
             audio = encode_audio(y, f0_floor, f0_ceil)
             audio_array.append(audio)
     audio_array.finish()
