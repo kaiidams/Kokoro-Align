@@ -59,13 +59,14 @@ def test(filespec):
     with open('data/kokoro_audio_segment.txt', 'w') as f:
         id_ = 0
         with open_index_data_for_write('data/kokoro_audio_16000.npz') as data:
-            for file in tqdm(sorted(glob(filespec))[:2]):
+            for file in tqdm(sorted(glob(filespec))):
                 x, origsr = librosa.load(file)
                 x = librosa.resample(x, origsr, sr)
                 for s, e in split_voiced(x, minimum_silent_frames, padding_frames, window_size) * window_size:
                     y = x[s:e].astype(np.double)
-                    cache_file = 'data/cache/kokoro/kokoro_%d_16000.npz' % id_
-                    if os.path.exist(cache_file):
+                    audiofile = os.path.basename(file)
+                    cache_file = 'data/cache/kokoro/%s_%d_%d_%d.npz' % (audiofile.replace('.mp3', ''), 16000, s, e)
+                    if os.path.exists(cache_file):
                         with np.load(cache_file) as f:
                             audio = f['audio']
                     else:
@@ -73,7 +74,7 @@ def test(filespec):
                         os.makedirs(os.path.dirname(cache_file), exist_ok=True)
                         np.savez(cache_file, audio=audio)
                     data.write(audio.astype(np.float32))
-                    f.write(f'{id_}|{os.path.basename(filespec)}|{s}|{e}\n')
+                    f.write(f'{id_}|{audiofile}|{s}|{e}\n')
                     id_ += 1
 
 if __name__ == '__main__':
