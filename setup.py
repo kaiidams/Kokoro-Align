@@ -21,12 +21,14 @@ setup(
     ],
     extras_require={
         "preprocess": [
-            #'mecab-python3',
-            #'unidic-lite',
             'librosa',
             'soundfile',
             'pyworld>=0.2.12',
             'pysptk>=0.1.18',
             'tqdm'
         ],
+        "align": [
+            'mecab-python3',
+            'unidic-lite',
+        ]
     })
