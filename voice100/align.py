@@ -62,6 +62,7 @@ def test(filespec):
             for file in tqdm(sorted(glob(filespec))):
                 x, origsr = librosa.load(file)
                 x = librosa.resample(x, origsr, sr)
+                x = x / np.max(x)
                 for s, e in split_voiced(x, minimum_silent_frames, padding_frames, window_size) * window_size:
                     y = x[s:e].astype(np.double)
                     audiofile = os.path.basename(file)
