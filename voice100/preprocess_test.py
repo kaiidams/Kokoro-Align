@@ -32,7 +32,7 @@ def test_text_data():
 def test_audio_data(args):
     file = 'data/%s_audio_16000.npz' % args.dataset
     with np.load(file) as f:
-        audio_index = f['index']
+        audio_index = f['indices']
         audio_data = f['data']
 
     for index in tqdm(range(10)):
