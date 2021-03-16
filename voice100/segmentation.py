@@ -132,13 +132,14 @@ def ctc_best_path(logits, labels, beam_size=50):
         score = score[alignment]
         alignments.append(alignment)
         
-        if i % 400 == 0:
-            best_path, score = get_path(paths, alignments, score)
-            for p, s in zip(best_path, score):
-                t = decode_text([labels[a] for a in p])
-                print(f'step: {i:4d} {s:.5f} {t}')
-                #print('alignment:', alignment.tolist())
-                #print('score:', score.tolist())
+        if False:
+            if i % 400 == 0:
+                best_path, score = get_path(paths, alignments, score)
+                for p, s in zip(best_path, score):
+                    t = decode_text([labels[a] for a in p])
+                    print(f'step: {i:4d} {s:.5f} {t}')
+                    #print('alignment:', alignment.tolist())
+                    #print('score:', score.tolist())
 
     return get_path(paths, alignments, score)
 
