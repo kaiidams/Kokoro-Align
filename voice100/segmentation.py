@@ -184,6 +184,7 @@ def test(args, model_dir='./model/ctc-20210313'):
 def test2(args):
     with np.load('data/%s_phoneme_16000.npz' % args.dataset) as f:
         logits = f['data']
+    
     #with np.load('a.npz') as f:
     #    logits = f['logits']
 
@@ -204,7 +205,7 @@ def test2(args):
 
     labels = encode_text(s)
     print(labels.shape)
-    best_path, score = ctc_best_path(logits[0], labels)
+    best_path, score = ctc_best_path(logits, labels)
     np.savez('data/kokoro_best_path.npz', best_path=best_path[0], score=score[0])
     l = decode_text([0 if x % 2 == 0 else labels[x // 2] for x in best_path[0]])
     print(l)
