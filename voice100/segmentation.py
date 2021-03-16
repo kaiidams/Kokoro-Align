@@ -168,8 +168,8 @@ def test(args, model_dir='./model/ctc-20210313'):
 
     ds = Voice100Dataset('data/%s_audio_16000.npz' % args.dataset)
     #ds = Voice100Dataset('data/%s_train.npz' % args.dataset)
-    with open_index_data_for_write('data/%s_phoneme.npz') as file:
-        for example in ds:
+    with open_index_data_for_write('data/%s_phoneme.npz' % args.dataset) as file:
+        for example in tqdm(ds):
             audio = example
             audio = (audio - NORMPARAMS[:, 0]) / NORMPARAMS[:, 1]
             audio = audio[np.newaxis, :, :]
