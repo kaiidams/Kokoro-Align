@@ -176,7 +176,7 @@ def test(args, model_dir='./model/ctc-20210313'):
             audio_len = [audio.shape[1]]
             logits = eval_step(audio, audio_len)
             x = np.argmax(logits.numpy(), axis=2)
-            print(decode_text(x[0]))
+            #print(decode_text(x[0]))
             file.write(logits[0])
 
 def test2():
