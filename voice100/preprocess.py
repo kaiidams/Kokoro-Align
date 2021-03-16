@@ -6,8 +6,11 @@ import math
 from tqdm import tqdm
 import argparse
 
-from .vocoder import readwav, estimatef0, encode_audio
+from .vocoder import readaudio, readwav, estimatef0, encode_audio
 from .encoder import encode_text
+
+import logging
+logging.basicConfig(level=logging.INFO)
 
 CORPUSDATA_PATH = 'data/balance_sentences.txt'
 CORPUSDATA_CSS10JA_PATH = 'data/japanese-single-speaker-speech-dataset/transcript.txt'
@@ -51,6 +54,105 @@ def readcorpus_css10ja(file):
             monophone = css10ja2voca(yomi)
             corpus.append((id_, monophone))
     return corpus
+
+class IndexDataArray:
+    def __init__(self, file):
+        self.file = file
+        self.current = 0
+        self.indices = []
+        self.data = []
+
+    def __enter__(self):
+        return self
+
+    def write(self, data):
+        self.current += data.shape[0]
+        self.indices.append(self.current)
+        self.data.append(data)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type is None:
+            indices = np.array(self.indices, dtype=np.int32)
+            data = np.concatenate(self.data, axis=0)
+            np.savez(self.file, indices=indices, data=data)
+
+def open_index_data_for_write(file):
+    return IndexDataArray(file)
+
+def split_voiced(x, minimum_silent_frames, padding_frames, window_size):
+    assert 2 * padding_frames < minimum_silent_frames
+    
+    num_frames = len(x) // window_size
+    mX = np.mean(x[:window_size * num_frames].reshape((-1, window_size)) ** 2, axis=1)
+    mX = 10 * np.log(mX)
+
+    silent_threshold = (np.max(mX) + np.min(mX)) / 2
+    
+    voiced = mX > silent_threshold
+
+    silent_to_voiced = np.where((~voiced[:-1]) & voiced[1:])[0] + 1 # The position where the voice starts
+    voiced_to_silent = np.where((voiced[:-1]) & ~voiced[1:])[0] + 1 # The position where the silence starts
+    if not voiced[0]:
+        # Eliminate the preceding silence
+        silent_to_voiced = silent_to_voiced[1:]
+    if not voiced[-1]:
+        # Eliminate the succeeding silence
+        voiced_to_silent = voiced_to_silent[:-1]
+    silent_ranges = np.stack([voiced_to_silent, silent_to_voiced]).T
+
+    for s, e in silent_ranges:
+        if e - s < minimum_silent_frames:
+            voiced[s:e] = True
+
+    silent_to_voiced = np.where((~voiced[:-1]) & voiced[1:])[0] + 1 # The position where the voice starts
+    voiced_to_silent = np.where((voiced[:-1]) & ~voiced[1:])[0] + 1 # The position where the silence starts
+    if voiced[0]:
+        # Include the preceding voiced
+        silent_to_voiced = np.insert(silent_to_voiced, 0, 0)
+    if voiced[-1]:
+        # Include the succeeding voiced
+        voiced_to_silent = np.append(voiced_to_silent, len(voiced))
+    voiced_ranges = np.stack([silent_to_voiced, voiced_to_silent]).T
+    
+    return voiced_ranges + np.array([[-padding_frames, padding_frames]])
+
+def split_audio(args):
+    sr = 16000
+    window_size = 512 # 46ms
+    minimum_silent_duration = 0.5 # 500ms
+    padding_duration = 0.05 # 50ms
+    minimum_silent_frames = minimum_silent_duration * sr / window_size
+    padding_frames = min(1, int(padding_duration * sr // window_size))
+    f0_floor, f0_ceil = (57.46701428196299, 196.7528135117272) # Low male voice
+
+    # Reading audio files
+    audio_list_file = f'data/{args.dataset}_audio_files.txt'
+    logging.info('Reading list of audio files from %s', audio_list_file)
+    with open(audio_list_file) as f:
+        audio_files = [line.rstrip('\r\n') for line in f.readlines()]
+        audio_files = [file for file in audio_files if file]
+    assert all(os.path.exists(file) for file in audio_files)
+
+    audio_segment_file = f'data/{args.dataset}_segment_{sr}.txt'
+    audio_data_file = f'data/{args.dataset}_audio_{sr}.npz'
+
+    with open(audio_segment_file, 'w') as segf:
+        with open_index_data_for_write(audio_data_file) as data:
+            for file in tqdm(audio_files):
+                x = readaudio(file, sr)
+                for start, end in split_voiced(x, minimum_silent_frames, padding_frames, window_size) * window_size:
+                    y = x[start:end].astype(np.float64)
+                    audioname = os.path.basename(file)
+                    cache_file = 'data/cache/%s/%s.%d_%08d_%08d.npz' % (args.dataset, audioname, sr, start, end)
+                    if os.path.exists(cache_file):
+                        with np.load(cache_file) as f:
+                            audio = f['audio']
+                    else:
+                        audio = encode_audio(y, f0_floor, f0_ceil)
+                        os.makedirs(os.path.dirname(cache_file), exist_ok=True)
+                        np.savez(cache_file, audio=audio)
+                    data.write(audio.astype(np.float32))
+                    segf.write(f'{file}|{start}|{end}\n')
 
 def analyze_files(name, files, eps=1e-20):
     f0_list = []
@@ -104,29 +206,6 @@ def analyze_jvs(name):
         file = WAVDATA_PATH[name] % id_
         files.append(file)
     analyze_files(name, files)
-
-class IndexDataArray:
-    def __init__(self, file):
-        self.file = file
-        self.current = 0
-        self.indices = []
-        self.data = []
-
-    def __enter__(self):
-        return self
-
-    def write(self, data):
-        self.current += data.shape[0]
-        self.indices.append(self.current)
-        self.data.append(data)
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        indices = np.array(self.indices, dtype=np.int32)
-        data = np.concatenate(self.data, axis=0)
-        np.savez(self.file, indices=indices, data=data)
-
-def open_index_data_for_write(file):
-    return IndexDataArray(file)
 
 def preprocess_css10ja(name):
 
@@ -211,17 +290,20 @@ def normalize_css10ja(name):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--split', action='store_true', help='Split audio and encode with WORLD vocoder.')
     parser.add_argument('--analyze', action='store_true', help='Analyze F0 of sampled data.')
     parser.add_argument('--normalize', action='store_true', help='Compute normalization parameters.')
     parser.add_argument('--dataset', required=True, help='Dataset to process, css10ja, tsukuyomi_normal')
     args = parser.parse_args()
 
-    if args.analyze:
+    if args.split:
+        split_audio(args)
+    elif args.analyze:
         if args.dataset == 'css10ja':
             analyze_css10ja(args.dataset)
         else:
             analyze_jvs(args.dataset)
-    if args.normalize:
+    elif args.normalize:
         if args.dataset == 'css10ja':
             normalize_css10ja(args.dataset)
         else:

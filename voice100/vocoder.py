@@ -9,6 +9,25 @@ import numpy as np
 SAMPLE_RATE = 16000
 FFT_SIZE = 1024
 
+def readaudio(file, targetsr=SAMPLE_RATE, normed=True):
+    r"""Read audio file and optionally convert sample rate and normalize the magnitude.
+    
+    Args:
+        file (str): Path of the file to read
+        targetsr (int): Target sampling rate
+        normed (int): `True` to normalize
+
+    Returns:
+        numpy.ndarray: the audio data
+    """
+    x, origsr = librosa.load(file)
+    if targetsr is not None:
+        x = librosa.resample(x, origsr, targetsr)
+    if normed:
+        x = x / x.max()
+    assert x.dtype == np.float32
+    return x
+
 def readwav(file, fs=SAMPLE_RATE):
     x, origfs = sf.read(file)
     if fs is not None:

@@ -22,12 +22,16 @@ $ python -m voice100.aozora http://www.aozora.gr.jp/cards/000121/files/628_14895
 ```
 $ (cd data && curl -LO http://archive.org/download/gongitsune_um_librivox/gongitsune_um_librivox_64kb_mp3.zip)
 $ unzip data/gongitsune_um_librivox_64kb_mp3.zip -d data/gongitsune_um_librivox_64kb_mp3
+$ ls data/gongitsune_um_librivox_64kb_mp3/*.mp3 | sort > data/gongitsune_audio_files.txt
+```
 
 ### Encode and split data
 
-```
-$ python -m voice100.
 
+
+```
+$ python -m voice100.preprocess --split --dataset gongitsune
+```
 
 
 ## How to train
