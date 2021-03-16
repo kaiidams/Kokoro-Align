@@ -37,6 +37,10 @@ $ python -m voice100.preprocess --split --dataset gongitsune
 $ python -m voice100.segmentation --estimate --dataset gongitsune
 ```
 
+```
+$ python -m voice100.segmentation --align --dataset gongitsune  
+```
+
 ## How to train
 
 ### Preprocessing

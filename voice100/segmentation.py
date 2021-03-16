@@ -10,8 +10,6 @@ class Voice100Dataset:
         with np.load(file) as f:
             self.audio_indices = f['indices']
             self.audio_data = f['data']
-            #self.audio_indices = f['audio_index']
-            #self.audio_data = f['audio_data']
 
     def __len__(self):
         return len(self.audio_indices)
@@ -169,10 +167,45 @@ def best_path(args):
     l = decode_text([0 if x % 2 == 0 else labels[x // 2] for x in best_path[0]])
     print(l)
 
+def align(args):
+    sr = 16000
+
+    s = ''
+    with open('data/%s_transcript.txt' % (args.dataset)) as f:
+        for line in f:
+            parts = line.rstrip('\r\n').split('|')
+            s += parts[1]
+    s = s.replace(' ', '')
+
+    labels = encode_text(s)
+
+    with np.load('data/%s_best_path.npz' % (args.dataset)) as f:
+        best_path = f['best_path']
+
+    file = 'data/%s_audio_%d.npz' % (args.dataset, sr)
+    with np.load(file) as f:
+        audio_indices = f['indices']
+        #audio_data = f['data']
+
+    for i in range(len(audio_indices)):
+        audio_start = audio_indices[i - 1] if i > 0 else 0 
+        audio_end = audio_indices[i]
+        text_start = best_path[audio_start]
+        text_end = best_path[audio_end] if audio_end < len(best_path) else len(labels)
+        
+        text_start = (text_start) // 2
+        text_end = (text_end) // 2
+
+        s = labels[text_start:text_end]
+        s = decode_text(s)
+        print(i, s)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--phoneme', action='store_true', help='Analyze F0 of sampled data.')
     parser.add_argument('--best_path', action='store_true', help='Compute normalization parameters.')
+    parser.add_argument('--align', action='store_true', help='Compute normalization parameters.')
     parser.add_argument('--dataset', help='Dataset to process, css10ja, tsukuyomi_normal')
     parser.add_argument('--model_dir', default='model/ctc-20210313')
 
@@ -182,6 +215,8 @@ def main():
         phoneme(args)
     elif args.best_path:
         best_path(args)
+    elif args.align:
+        align(args)
 
 if __name__ == '__main__':
     main()
