@@ -77,7 +77,7 @@ def ctc_best_path(logits, labels, beam_size=50):
             s.append(alighment[k])
             k = path[k]
         s = np.array(list(reversed(s))).T # (beam_size, audio_seq_len)
-        si = np.argsort(score)
+        si = np.argsort(score)[::-1]
         return s[si], score[si]
 
     # Expand label with blanks
@@ -128,7 +128,6 @@ def ctc_best_path(logits, labels, beam_size=50):
         if len(alignment) > beam_size * 2:
             k = np.argsort(score[alignment])
             alignment = alignment[k[-beam_size:]]
-            print(len(alignment))
         paths.append(path[alignment])
         score = score[alignment]
         alignments.append(alignment)
@@ -184,7 +183,9 @@ def test(args, model_dir='./model/ctc-20210313'):
 
 def test2(args):
     with np.load('data/%s_phoneme_16000.npz' % args.dataset) as f:
-        logits = f['logits']
+        logits = f['data']
+    #with np.load('a.npz') as f:
+    #    logits = f['logits']
 
     print(logits.shape)
     if False:
@@ -204,8 +205,8 @@ def test2(args):
     labels = encode_text(s)
     print(labels.shape)
     best_path, score = ctc_best_path(logits[0], labels)
-    np.savez('data/kokoro_best_path.npz', best_path=best_path)
-    l = decode_text(best_path)
+    np.savez('data/kokoro_best_path.npz', best_path=best_path[0], score=score[0])
+    l = decode_text([0 if x % 2 == 0 else labels[x // 2] for x in best_path[0]])
     print(l)
 
 def main():
