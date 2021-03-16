@@ -5,6 +5,23 @@ import numpy as np
 from tqdm import tqdm
 from voice100.encoder import encode_text, decode_text
 
+class Voice100Dataset:
+    def __init__(self, file):
+        with np.load(file) as f:
+            #self.audio_indices = f['indices']
+            #self.audio_data = f['data']
+            self.audio_indices = f['audio_index']
+            self.audio_data = f['audio_data']
+
+    def __len__(self):
+        return len(self.audio_indices)
+
+    def __getitem__(self, index):
+        audio_start = self.audio_indices[index - 1] if index else 0
+        audio_end = self.audio_indices[index]
+        audio = self.audio_data[audio_start:audio_end, :]
+        return audio
+
 def test1():
     from voice100._text2voca import text2voca
     from bs4 import BeautifulSoup
@@ -123,7 +140,7 @@ def ctc_best_path(logits, labels, beam_size=50):
         #print('score:', score.tolist())
     return [0], [0]# score, path
 
-def test(model_dir='./model/ctc-20210313'):
+def test(args, model_dir='./model/ctc-20210313'):
     from voice100.train_ctc import Voice100CTCTask
     from voice100.data_pipeline import NORMPARAMS
     import tensorflow as tf
@@ -137,25 +154,30 @@ def test(model_dir='./model/ctc-20210313'):
         raise ValueError()
     ckpt.restore(ckpt_manager.latest_checkpoint).expect_partial()
 
-    a = [
-        (file, int(re.sub('.*16000_([0-9]+)_[0-9]+.npz', r'\1', file)))
-        for file in glob('data/cache/kokoro/kokoro_001_natsume_64kb_16000_*.npz')
-        ]
-    a = sorted(a, key=lambda x: x[1])
-    a = [file for file, _ in a]
-    r = []
-    for file in a:
-        with np.load(file) as f:
-            audio = f['audio']
-            r.append(audio)
-    audio = np.concatenate(r, axis=0)
-    audio = audio[np.newaxis, :, :].astype(np.float32)
-    audio = (audio - NORMPARAMS[:, 0]) / NORMPARAMS[:, 1]
-    audio_mask = np.ones_like(audio[:, :, 0], dtype=bool)
-    audio_len = [audio.shape[1]]
-    audio_mask = tf.sequence_mask(audio_len, maxlen=tf.shape(audio)[1])
-    logits = model(audio, mask=audio_mask)
-    np.savez('a.npz', logits=logits)
+    @tf.function(input_signature=[
+        tf.TensorSpec(shape=[None, None, task.params['audio_dim']], dtype=tf.float32),
+        tf.TensorSpec(shape=[None], dtype=tf.int32),
+    ])
+    def eval_step(audio, audio_len):
+        audio_mask = tf.sequence_mask(audio_len, maxlen=tf.shape(audio)[1])
+        logits = model(audio, mask=audio_mask)
+        logits = tf.nn.softmax(logits, axis=2)
+        return logits
+
+    from .preprocess import open_index_data_for_write
+
+    #ds = Voice100Dataset('data/%s_audio_16000.npz' % args.dataset)
+    ds = Voice100Dataset('data/%s_train.npz' % args.dataset)
+    with open_index_data_for_write('data/%s_phoneme.npz') as file:
+        for example in ds:
+            audio = example
+            audio = (audio - NORMPARAMS[:, 0]) / NORMPARAMS[:, 1]
+            audio = audio[np.newaxis, :, :]
+            audio_len = [audio.shape[1]]
+            logits = eval_step(audio, audio_len)
+            x = np.argmax(logits.numpy(), axis=2)
+            print(decode_text(x[0]))
+            file.write(logits[0])
 
 def test2():
     with np.load('a.npz') as f:
@@ -187,7 +209,7 @@ def main():
 
     args = parser.parse_args()
 
-    test2()
+    test(args)
 
 if __name__ == '__main__':
     main()
