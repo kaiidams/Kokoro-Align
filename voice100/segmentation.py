@@ -8,10 +8,10 @@ from voice100.encoder import encode_text, decode_text
 class Voice100Dataset:
     def __init__(self, file):
         with np.load(file) as f:
-            #self.audio_indices = f['indices']
-            #self.audio_data = f['data']
-            self.audio_indices = f['audio_index']
-            self.audio_data = f['audio_data']
+            self.audio_indices = f['indices']
+            self.audio_data = f['data']
+            #self.audio_indices = f['audio_index']
+            #self.audio_data = f['audio_data']
 
     def __len__(self):
         return len(self.audio_indices)
@@ -166,8 +166,8 @@ def test(args, model_dir='./model/ctc-20210313'):
 
     from .preprocess import open_index_data_for_write
 
-    #ds = Voice100Dataset('data/%s_audio_16000.npz' % args.dataset)
-    ds = Voice100Dataset('data/%s_train.npz' % args.dataset)
+    ds = Voice100Dataset('data/%s_audio_16000.npz' % args.dataset)
+    #ds = Voice100Dataset('data/%s_train.npz' % args.dataset)
     with open_index_data_for_write('data/%s_phoneme.npz') as file:
         for example in ds:
             audio = example
