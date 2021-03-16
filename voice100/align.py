@@ -66,7 +66,7 @@ def test(filespec):
                 for s, e in split_voiced(x, minimum_silent_frames, padding_frames, window_size) * window_size:
                     y = x[s:e].astype(np.double)
                     audiofile = os.path.basename(file)
-                    cache_file = 'data/cache/kokoro/%s_%d_%d_%d.npz' % (audiofile.replace('.mp3', ''), 16000, s, e)
+                    cache_file = 'data/cache/kokoro/%s_%d_%08d_%08d.npz' % (audiofile.replace('.mp3', ''), 16000, s, e)
                     if os.path.exists(cache_file):
                         with np.load(cache_file) as f:
                             audio = f['audio']
