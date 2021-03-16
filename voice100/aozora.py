@@ -31,7 +31,7 @@ class AozoraParser:
         self.text = ''
 
     def process(self, file_or_url, outfile):
-        if file_or_url.startswith('https://'):
+        if file_or_url.startswith('https://') or file_or_url.startswith('http://'):
             import requests
             with requests.get(file_or_url) as r:
                 t = r.content.decode('shift_jis') 

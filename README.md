@@ -10,6 +10,26 @@
 - [Sample synthesis 1 (From eval datset)](docs/sample1.wav)
 - [Sample synthesis 2 (From JVS corpus)](docs/sample2.wav)
 
+## How to build dataset
+
+### Get text data
+
+```
+$ mkdir data
+$ python -m voice100.aozora http://www.aozora.gr.jp/cards/000121/files/628_14895.html data/gongitsune.txt
+```
+
+```
+$ (cd data && curl -LO http://archive.org/download/gongitsune_um_librivox/gongitsune_um_librivox_64kb_mp3.zip)
+$ unzip data/gongitsune_um_librivox_64kb_mp3.zip -d data/gongitsune_um_librivox_64kb_mp3
+
+### Encode and split data
+
+```
+$ python -m voice100.
+
+
+
 ## How to train
 
 ### Preprocessing
