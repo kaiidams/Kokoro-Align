@@ -69,6 +69,17 @@ def test1():
         _process_soup(body)
 
 def ctc_best_path(logits, labels, beam_size=50):
+
+    def get_path(paths, alignments, score):
+        s = []
+        k = np.arange(alignments[-1].shape[0])
+        for path, alighment in zip(reversed(paths), reversed(alignments)):
+            s.append(alighment[k])
+            k = path[k]
+        s = np.array(list(reversed(s))).T # (beam_size, audio_seq_len)
+        si = np.argsort(score)
+        return s[si], score[si]
+
     # Expand label with blanks
     import numpy as np
     tmp = labels
@@ -123,22 +134,14 @@ def ctc_best_path(logits, labels, beam_size=50):
         alignments.append(alignment)
         
         if i % 400 == 0:
-            s = []
-            k = np.arange(alignments[-1].shape[0])
-            for path, alighment in zip(reversed(paths), reversed(alignments)):
-                #print(path[k], alighment[k])
-                s.append(alighment[k])
-                k = path[k]
-            s = np.array(list(reversed(s))).T
-            s = sorted(zip(s, score), key=lambda x: x[1], reverse=True)
+            best_path, score = get_path(paths, alignments, score)
+            for p, s in zip(best_path, score):
+                t = decode_text([labels[a] for a in p])
+                print(f'step: {i:4d} {s:.5f} {t}')
+                #print('alignment:', alignment.tolist())
+                #print('score:', score.tolist())
 
-            #s = list(reversed(list(zip(s, score))))
-            for j, k in s[:3]:
-                s = decode_text([labels[x] for x in j])
-                print(f'step: {i:4d} {k:.5f} {s}')
-        #print('alignment:', alignment.tolist())
-        #print('score:', score.tolist())
-    return [0], [0]# score, path
+    return get_path(paths, alignments, score)
 
 def test(args, model_dir='./model/ctc-20210313'):
     from voice100.train_ctc import Voice100CTCTask
@@ -168,7 +171,7 @@ def test(args, model_dir='./model/ctc-20210313'):
 
     ds = Voice100Dataset('data/%s_audio_16000.npz' % args.dataset)
     #ds = Voice100Dataset('data/%s_train.npz' % args.dataset)
-    with open_index_data_for_write('data/%s_phoneme.npz' % args.dataset) as file:
+    with open_index_data_for_write('data/%s_phoneme_16000.npz' % args.dataset) as file:
         for example in tqdm(ds):
             audio = example
             audio = (audio - NORMPARAMS[:, 0]) / NORMPARAMS[:, 1]
@@ -179,26 +182,30 @@ def test(args, model_dir='./model/ctc-20210313'):
             #print(decode_text(x[0]))
             file.write(logits[0])
 
-def test2():
-    with np.load('a.npz') as f:
+def test2(args):
+    with np.load('data/%s_phoneme_16000.npz' % args.dataset) as f:
         logits = f['logits']
 
     print(logits.shape)
-    k = logits[0].argmax(axis=-1)
-    print(k.shape)
-    k = decode_text(k)
-    #print(k)
-    #logits = np.concatenate([logits]*10, axis=1)
+    if False:
+        k = logits[0].argmax(axis=-1)
+        print(k.shape)
+        k = decode_text(k)
+        #print(k)
+        #logits = np.concatenate([logits]*10, axis=1)
+
     s = ''
     with open('data/kokoro_transcript.txt') as f:
         for line in f:
             parts = line.rstrip('\r\n').split('|')
             s += parts[1]
     s = s.replace(' ', '')
+
     labels = encode_text(s)
     print(labels.shape)
-    _, p = ctc_best_path(logits[0], labels)
-    l = decode_text(p)
+    best_path, score = ctc_best_path(logits[0], labels)
+    np.savez('data/kokoro_best_path.npz', best_path=best_path)
+    l = decode_text(best_path)
     print(l)
 
 def main():
@@ -209,7 +216,7 @@ def main():
 
     args = parser.parse_args()
 
-    test(args)
+    test2(args)
 
 if __name__ == '__main__':
     main()
