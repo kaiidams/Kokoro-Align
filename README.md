@@ -27,12 +27,15 @@ $ ls data/gongitsune_um_librivox_64kb_mp3/*.mp3 | sort > data/gongitsune_audio_f
 
 ### Encode and split data
 
-
-
 ```
 $ python -m voice100.preprocess --split --dataset gongitsune
 ```
 
+### Estimate phonemes
+
+```
+$ python -m voice100.segmentation --estimate --dataset gongitsune
+```
 
 ## How to train
 

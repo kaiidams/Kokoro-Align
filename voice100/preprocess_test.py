@@ -44,6 +44,11 @@ def test_audio_data(args):
         os.makedirs(os.path.dirname(file), exist_ok=True)
         writewav(file, x)
 
+def test_audio_split(args):
+    from .vocoder import readaudio, writewav
+    x = readaudio('data/gongitsune_um_librivox_64kb_mp3/gongitsune_01_niimi_64kb.mp3')
+    writewav('a.wav', x[371200:403456])
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--analyze', action='store_true', help='Analyze F0 of sampled data.')
@@ -51,7 +56,8 @@ def main():
     parser.add_argument('--dataset', help='Dataset to process, css10ja, tsukuyomi_normal')
 
     args = parser.parse_args()
-    test_audio_data(args)
+    #test_audio_data(args)
+    test_audio_split(args)
 
 if __name__ == '__main__':
     main()

@@ -3,7 +3,7 @@
 import argparse
 import numpy as np
 from tqdm import tqdm
-from voice100.encoder import encode_text, decode_text
+from voice100.encoder import encode_text, decode_text, merge_repeated
 
 class Voice100Dataset:
     def __init__(self, file):
@@ -55,7 +55,7 @@ def ctc_best_path(logits, labels, beam_size=50):
         k = np.nonzero(alignments[-1] < labels.shape[0])
         v = alignments[-1][k]
         path1[v] = k
-        score1[v] = score + logits[i, labels[v]]
+        score1[v] = score[k] + logits[i, labels[v]]
 
         # Move forward
         path2 = np.zeros([labels.shape[0]], dtype=np.int32) - 1
@@ -63,7 +63,7 @@ def ctc_best_path(logits, labels, beam_size=50):
         k = np.nonzero(alignments[-1] + 1 < labels.shape[0])
         v = (alignments[-1] + 1)[k]
         path2[v] = k
-        score2[v] = score + logits[i, labels[v]]
+        score2[v] = score[k] + logits[i, labels[v]]
 
         # Skip blank and move forward
         path3 = np.zeros([labels.shape[0]], dtype=np.int32) - 1
@@ -71,7 +71,7 @@ def ctc_best_path(logits, labels, beam_size=50):
         k = np.nonzero(alignments[-1] + 2 < labels.shape[0])
         v = (alignments[-1] + 2)[k]
         path3[v] = k
-        score3[v] = score + logits[i, labels[v]]
+        score3[v] = score[k] + logits[i, labels[v]]
 
         score = np.where(score1 > score2, score1, score2)
         path = np.where(score1 > score2, path1, path2)
@@ -97,16 +97,18 @@ def ctc_best_path(logits, labels, beam_size=50):
 
     return get_path(paths, alignments, score)
 
-def test(args, model_dir='./model/ctc-20210313'):
+def phoneme(args):
     from voice100.train_ctc import Voice100CTCTask
     from voice100.data_pipeline import NORMPARAMS
     import tensorflow as tf
     import re
     from glob import glob
+
+    sr = 16000
     task = Voice100CTCTask(args)
     model = task.create_model()
     ckpt = tf.train.Checkpoint(model=model)
-    ckpt_manager = tf.train.CheckpointManager(ckpt, model_dir, max_to_keep=5)
+    ckpt_manager = tf.train.CheckpointManager(ckpt, args.model_dir, max_to_keep=5)
     if not ckpt_manager.latest_checkpoint:
         raise ValueError()
     ckpt.restore(ckpt_manager.latest_checkpoint).expect_partial()
@@ -123,21 +125,23 @@ def test(args, model_dir='./model/ctc-20210313'):
 
     from .preprocess import open_index_data_for_write
 
-    ds = Voice100Dataset('data/%s_audio_16000.npz' % args.dataset)
-    #ds = Voice100Dataset('data/%s_train.npz' % args.dataset)
-    with open_index_data_for_write('data/%s_phoneme_16000.npz' % args.dataset) as file:
-        for example in tqdm(ds):
-            audio = example
-            audio = (audio - NORMPARAMS[:, 0]) / NORMPARAMS[:, 1]
-            audio = audio[np.newaxis, :, :]
-            audio_len = [audio.shape[1]]
-            logits = eval_step(audio, audio_len)
-            x = np.argmax(logits.numpy(), axis=2)
-            #print(decode_text(x[0]))
-            file.write(logits[0])
+    ds = Voice100Dataset('data/%s_audio_%d.npz' % (args.dataset, sr))
+    with open_index_data_for_write('data/%s_phoneme_%d.npz' % (args.dataset, sr)) as file:
+        with open('data/%s_phoneme_%d.txt' % (args.dataset, sr), 'wt') as txtfile:
+            for example in tqdm(ds):
+                audio = example
+                audio = (audio - NORMPARAMS[:, 0]) / NORMPARAMS[:, 1]
+                audio = audio[np.newaxis, :, :]
+                audio_len = [audio.shape[1]]
+                logits = eval_step(audio, audio_len)
+                x = np.argmax(logits.numpy(), axis=2)
 
-def test2(args):
-    with np.load('data/%s_phoneme_16000.npz' % args.dataset) as f:
+                file.write(logits[0])
+                txtfile.write(merge_repeated(decode_text(x[0])) + '\n')
+
+def best_path(args):
+    sr = 16000
+    with np.load('data/%s_phoneme_%d.npz' % (args.dataset, sr)) as f:
         logits = f['data']
     
     #with np.load('a.npz') as f:
@@ -152,7 +156,7 @@ def test2(args):
         #logits = np.concatenate([logits]*10, axis=1)
 
     s = ''
-    with open('data/kokoro_transcript.txt') as f:
+    with open('data/%s_transcript.txt' % (args.dataset)) as f:
         for line in f:
             parts = line.rstrip('\r\n').split('|')
             s += parts[1]
@@ -161,19 +165,23 @@ def test2(args):
     labels = encode_text(s)
     print(labels.shape)
     best_path, score = ctc_best_path(logits, labels)
-    np.savez('data/kokoro_best_path.npz', best_path=best_path[0], score=score[0])
+    np.savez('data/%s_best_path.npz' % (args.dataset), best_path=best_path[0], score=score[0])
     l = decode_text([0 if x % 2 == 0 else labels[x // 2] for x in best_path[0]])
     print(l)
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--analyze', action='store_true', help='Analyze F0 of sampled data.')
-    parser.add_argument('--normalize', action='store_true', help='Compute normalization parameters.')
+    parser.add_argument('--phoneme', action='store_true', help='Analyze F0 of sampled data.')
+    parser.add_argument('--best_path', action='store_true', help='Compute normalization parameters.')
     parser.add_argument('--dataset', help='Dataset to process, css10ja, tsukuyomi_normal')
+    parser.add_argument('--model_dir', default='model/ctc-20210313')
 
     args = parser.parse_args()
 
-    test2(args)
+    if args.phoneme:
+        phoneme(args)
+    elif args.best_path:
+        best_path(args)
 
 if __name__ == '__main__':
     main()

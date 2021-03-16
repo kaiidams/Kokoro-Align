@@ -312,12 +312,13 @@ _CONVRULES = [
 #その他特別なルール
     'を/ o',
 
-    '、/ .',
-    '。/ ,'
+    '、/ ,',
+    '。/ .',
+    '？/ ?'
 ]
 
 _COLON_RX = re.compile(':+')
-_REJECT_RX = re.compile('[^ a-zA-Z:]')
+_REJECT_RX = re.compile('[^ a-zA-Z:,.?]')
 
 def _makerulemap():
     l = [tuple(x.split('/')) for x in _CONVRULES]

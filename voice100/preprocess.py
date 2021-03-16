@@ -113,7 +113,7 @@ def split_voiced(x, minimum_silent_frames, padding_frames, window_size):
         # Include the succeeding voiced
         voiced_to_silent = np.append(voiced_to_silent, len(voiced))
     voiced_ranges = np.stack([silent_to_voiced, voiced_to_silent]).T
-    
+
     return voiced_ranges + np.array([[-padding_frames, padding_frames]])
 
 def split_audio(args):

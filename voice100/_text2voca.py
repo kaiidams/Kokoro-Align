@@ -20,7 +20,7 @@ def getyomi(text):
         if line == 'EOS':
             break
         parts = line.split('\t')
-        if parts[0] == '。' or parts[0] == '、':
+        if parts[0] in ['。', '、', '？']:
             res += parts[0]
         else:
             res += parts[1]

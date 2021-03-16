@@ -12,3 +12,6 @@ def encode_text(text):
 def decode_text(encoded):
     return ''.join(vocab[x] for x in encoded)
 
+def merge_repeated(text):
+    import re
+    return re.sub(r'(.)\1+', r'\1', text).replace(' ', '')
