@@ -9,11 +9,11 @@ from .encoder import decode_text
 def test_text_data():
     file = 'data/%s_text.npz' % args.dataset
     with np.load(file) as f:
-        text_index = f['index']
+        text_index = f['indices']
         text_data = f['data']
     file = 'data/%s_audio_16000.npz' % args.dataset
     with np.load(file) as f:
-        audio_index = f['index']
+        audio_index = f['indices']
         audio_data = f['data']
 
     for index in tqdm(range(10)):
@@ -25,7 +25,7 @@ def test_text_data():
         audio = audio_data[audio_start:audio_end, :]
         print(decode_text(text))
         x = decode_audio(audio)
-        file = 'data/synthesized/%s_%04d.wav' % (dataset, index)
+        file = 'data/synthesized/%s_%04d.wav' % (args.dataset, index)
         os.makedirs(os.path.dirname(file), exist_ok=True)
         writewav(file, x)
 
@@ -40,7 +40,7 @@ def test_audio_data(args):
         audio_end = audio_index[index]
         audio = audio_data[audio_start:audio_end, :]
         x = decode_audio(audio)
-        file = 'data/synthesized/%s_%04d.wav' % (dataset, index)
+        file = 'data/synthesized/%s_%04d.wav' % (args.dataset, index)
         os.makedirs(os.path.dirname(file), exist_ok=True)
         writewav(file, x)
 
