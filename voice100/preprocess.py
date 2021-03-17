@@ -124,14 +124,16 @@ def split_audio(args):
 
 def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_fft=1024):
 
+    args.dataset = 'css10ja'
+
     mfcc_transform = torchaudio.transforms.MFCC(
         sample_rate=expected_sample_rate,
         n_mfcc=n_mfcc,
         melkwargs={'n_fft': n_fft, 'n_mels': n_mels, 'hop_length': n_fft // 2})
 
     corpus = readcorpus_css10ja(os.path.join(CORPUSDATA_CSS10JA_PATH, 'transcript.txt'))
-    with open_index_data_for_write(TEXT_PATH % (name,)) as textf:
-        with open_index_data_for_write(AUDIO_PATH % (name,)) as audiof:
+    with open_index_data_for_write(TEXT_PATH % (args.dataset,)) as textf:
+        with open_index_data_for_write(AUDIO_PATH % (args.dataset,)) as audiof:
             for id_, monophone in tqdm(corpus):
 
                 if not monophone:
