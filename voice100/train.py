@@ -83,10 +83,10 @@ def train_loop(dataloader, model, loss_fn, optimizer):
         audio = audio.cuda()
         text_len = text_len.cuda()
         logits, probs_len = model(audio)
-        probs = torch.softmax(logits, dim=-1)
+        log_probs = nn.functional.log_softmax(logits, dim=-1)
         text = text.transpose(0, 1)
         #print(logits.shape, text.shape, audio_lengths.shape, text_lengths.shape)
-        loss = loss_fn(probs, text, probs_len, text_len)
+        loss = loss_fn(log_probs, text, probs_len, text_len)
 
         optimizer.zero_grad()
         loss.backward()
