@@ -2,47 +2,20 @@
 
 import os
 import numpy as np
-import math
 from tqdm import tqdm
 import argparse
+import torch
+import torchaudio
 
-from .vocoder import readaudio, readwav, estimatef0, encode_audio
 from .encoder import encode_text
 
 import logging
 logging.basicConfig(level=logging.INFO)
 
-CORPUSDATA_PATH = 'data/balance_sentences.txt'
-CORPUSDATA_CSS10JA_PATH = 'data/japanese-single-speaker-speech-dataset/transcript.txt'
-
-WAVDATA_PATH = {
-    'css10ja': 'data/japanese-single-speaker-speech-dataset/%s',
-    'tsuchiya_normal': 'data/tsuchiya_normal/tsuchiya_normal_%s.wav',
-    'hiroshiba_normal': 'data/hiroshiba_normal/hiroshiba_normal_%s.wav',
-    'tsukuyomi_normal': 'data/つくよみちゃんコーパス Vol.1 声優統計コーパス（JVSコーパス準拠）'
-        '/01 WAV（収録時の音量のまま）/VOICEACTRESS100_%s.wav',
-}
-
-# F0 mean +/- 2.5 std
-F0_RANGE = {
-    'css10ja': (57.46701428196299, 196.7528135117272),
-    'tsukuyomi_normal': (138.7640311667663, 521.2003965068923)
-}
+CORPUSDATA_CSS10JA_PATH = 'data/japanese-single-speaker-speech-dataset'
 
 TEXT_PATH = 'data/%s_text.npz'
-AUDIO_PATH = 'data/%s_audio_%d.npz'
-
-def readcorpus(file):
-    corpus = []
-    with open(file) as f:
-        f.readline()
-        for line in f:
-            parts = line.rstrip('\r\n').split('\t')
-            id_, _, _, monophone = parts
-            monophone = monophone.replace('/', '').replace(',', '')
-            corpus.append((id_, monophone))
-
-    return corpus
+AUDIO_PATH = 'data/%s_audio.npz'
 
 def readcorpus_css10ja(file):
     from ._css10ja2voca import css10ja2voca
@@ -149,162 +122,45 @@ def split_audio(args):
                         data.write(audio.astype(np.float32))
                         segf.write(f'{file}|{start}|{end}\n')
 
-def analyze_files(name, files, eps=1e-20):
-    f0_list = []
-    power_list = []
-    for file in tqdm(files):
-        x = readwav(file)
+def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_fft=1024):
 
-        # Estimate F0
-        f0 = estimatef0(x)
-        f0 = f0[f0 > 0].copy()
-        assert f0.ndim == 1
-        f0_list.append(f0)
+    mfcc_transform = torchaudio.transforms.MFCC(
+        sample_rate=expected_sample_rate,
+        n_mfcc=n_mfcc,
+        melkwargs={'n_fft': n_fft, 'n_mels': n_mels, 'hop_length': n_fft // 2})
 
-        # Calculate loudness
-        window_size = 1024
-        power = x[:(x.shape[0] // window_size) * window_size].reshape((-1, window_size))
-        power = np.log(np.mean(power ** 2, axis=1) + eps)
-        assert power.ndim == 1
-        power_list.append(power)
+    corpus = readcorpus_css10ja(os.path.join(CORPUSDATA_CSS10JA_PATH, 'transcript.txt'))
+    with open_index_data_for_write(TEXT_PATH % (name,)) as textf:
+        with open_index_data_for_write(AUDIO_PATH % (name,)) as audiof:
+            for id_, monophone in tqdm(corpus):
 
-    f0 = np.concatenate(f0_list, axis=0)
-    f0_mean = np.mean(f0)
-    f0_std = np.std(f0)
-    f0_hist, f0_bin_edges = np.histogram(f0, bins=np.linspace(0, 1000.0, 101), density=True)
-
-    power = np.concatenate(power_list, axis=0)
-    power_mean = np.mean(power)
-    power_std = np.std(power)
-    power_hist, power_bin_edges = np.histogram(power, bins=np.linspace(-30, 0.0, 100), density=True)
-
-    np.savez(os.path.join('data', '%s_stat.npz' % name),
-        f0=f0,
-        f0_mean=f0_mean, f0_std=f0_std,
-        f0_hist=f0_hist, f0_bin_edges=f0_bin_edges,
-        power_mean=power_mean, power_std=power_std,
-        power_hist=power_hist, power_bin_edges=power_bin_edges)
-
-def analyze_css10ja(name):
-    corpus = readcorpus_css10ja(CORPUSDATA_CSS10JA_PATH)
-    files = []
-    for id_, monophone in corpus[17::6841 // 100]: # Use 100 samples from corpus
-        file = os.path.join('data', 'japanese-single-speaker-speech-dataset', id_)
-        files.append(file)
-    analyze_files(name, files)
-
-def analyze_jvs(name):
-    corpus = readcorpus(CORPUSDATA_PATH)
-    files = []
-    for id_, monophone in corpus:
-        assert len(id_) == 3
-        file = WAVDATA_PATH[name] % id_
-        files.append(file)
-    analyze_files(name, files)
-
-def preprocess_css10ja(name):
-
-    if name.endswith('_highpitch'):
-        tsukuyomi_average_logf0 = 5.783612067835965
-        css10ja_average_logf0 = 4.830453997458316
-        pitchshift = math.exp(tsukuyomi_average_logf0 - css10ja_average_logf0)
-    else:
-        pitchshift = None
-    f0_floor, f0_ceil = F0_RANGE[name]
-
-    text_array = IndexDataArray(TEXT_PATH % (name,))
-    audio_array = IndexDataArray(AUDIO_PATH % (name, 16000))
-
-    corpus = readcorpus_css10ja(CORPUSDATA_CSS10JA_PATH)
-    for id_, monophone in tqdm(corpus[:10]):
-
-        if not monophone:
-            print('Skipping: <empty>')
-            continue
-        try:
-            text = encode_text(monophone)
-        except:
-            print(f'Skipping: {monophone}')
-            continue
-    
-        file = os.path.join('data', 'japanese-single-speaker-speech-dataset', id_)
-        assert '..' not in file # Just make sure it is under the current directory.
-        cache_file = os.path.join('data', 'cache', name, id_.replace('.wav', '.npz'))
-        if os.path.exists(cache_file):
-            audio = np.load(cache_file)['audio']
-            assert audio.shape[0] > 0
-        else:
-            x = readwav(file)
-            audio = encode_audio(x, f0_floor, f0_ceil, pitchshift=pitchshift)
-            os.makedirs(os.path.dirname(cache_file), exist_ok=True)
-            np.savez(cache_file, audio=audio)
-
-        text_array.append(text.astype(np.int8))
-        audio_array.append(audio.astype(np.float32))
-
-    text_array.finish()
-    audio_array.finish()
-
-def preprocess_jvs(name):
-    corpus = readcorpus(CORPUSDATA_PATH)
-    f0_floor, f0_ceil = F0_RANGE[name]
-    data = make_empty_data()
-    text_index = 0
-    audio_index = 0
-    for id_, monophone in tqdm(corpus):
-        assert len(id_) == 3
-        file = WAVDATA_PATH[name] % id_
-        x = readwav(file)
-        text = encode_text(monophone)
-        audio = encode_audio(x, f0_floor, f0_ceil)
-        text_index += text.shape[0]
-        audio_index += audio.shape[0]
-        append_data(data, id_, text_index, text, audio_index, audio)
-
-    finish_data(data, OUTPUT_PATH % (name, "train"))
-
-def normalize_css10ja(name):
-
-    if False:
-        from .data_pipeline import normparams
-        for split in 'train', 'val':
-            with np.load(OUTPUT_PATH % (name, split) + '.bak') as f:
-                data = {k:v for k, v in f.items()}
-            print(data.keys())
-            print(data['audio_data'].shape)
-            data['audio_data'] = data['audio_data'] * normparams[:, 0] + normparams[:, 1]
-            np.savez(OUTPUT_PATH % (name, split), **data)
-
-    with np.load(OUTPUT_PATH % (name, "train")) as f:
-        audio = f['audio_data']
-    mean = np.mean(audio, axis=0)
-    std = np.std(audio, axis=0)
-    x = np.stack([mean, std], axis=1)
-    for i in range(x.shape[0]):
-        print('    [%s, %s],' % (str(x[i, 0]), str(x[i, 1])))
+                if not monophone:
+                    print('Skipping: <empty>')
+                    continue
+                try:
+                    encoded = encode_text(monophone)
+                    assert encoded.dtype == np.int8
+                except:
+                    print(f'Skipping: {monophone}')
+                    continue
+            
+                file = os.path.join(CORPUSDATA_CSS10JA_PATH, id_)
+                assert '..' not in file # Just make sure it is under the current directory.
+                y, sr = torchaudio.load(file)
+                assert sr == expected_sample_rate
+                mfcc = mfcc_transform(y)
+                textf.write(encoded)
+                audiof.write(mfcc.numpy().astype(np.float32))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--split', action='store_true', help='Split audio and encode with WORLD vocoder.')
-    parser.add_argument('--analyze', action='store_true', help='Analyze F0 of sampled data.')
-    parser.add_argument('--normalize', action='store_true', help='Compute normalization parameters.')
-    parser.add_argument('--dataset', required=True, help='Dataset to process, css10ja, tsukuyomi_normal')
+    parser.add_argument('--css10ja', action='store_true', help='Analyze F0 of sampled data.')
     args = parser.parse_args()
 
     if args.split:
         split_audio(args)
-    elif args.analyze:
-        if args.dataset == 'css10ja':
-            analyze_css10ja(args.dataset)
-        else:
-            analyze_jvs(args.dataset)
-    elif args.normalize:
-        if args.dataset == 'css10ja':
-            normalize_css10ja(args.dataset)
-        else:
-            assert False
+    elif args.css10ja:
+        preprocess_css10ja(args)
     else:
-        if args.dataset == 'css10ja' or args.dataset == 'css10ja_highpitch':
-            preprocess_css10ja(args.dataset)
-        else:
-            preprocess_jvs(args.dataset)
+        raise ValueError('Unknown command')
