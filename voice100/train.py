@@ -125,7 +125,6 @@ def train(args):
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     loss_fn = loss_fn.cuda()
     model = model.cuda()
-    optimizer = optimizer.cuda()
 
     ds = TextAudioDataset(
         text_file=f'data/{args.dataset}_text.npz',
