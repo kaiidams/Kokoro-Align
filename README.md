@@ -34,8 +34,14 @@ $ python -m voice100.preprocess --split --dataset gongitsune
 ### Estimate phonemes
 
 ```
-$ python -m voice100.segmentation --estimate --dataset gongitsune
+$ python -m voice100.segmentation --phoeneme --dataset gongitsune
 ```
+
+```
+$ python -m voice100.segmentation --best_path --dataset gongitsune
+```
+
+python -m voice100.transcript
 
 ```
 $ python -m voice100.segmentation --align --dataset gongitsune  

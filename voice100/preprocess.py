@@ -79,17 +79,7 @@ class IndexDataArray:
 def open_index_data_for_write(file):
     return IndexDataArray(file)
 
-def split_voiced(x, minimum_silent_frames, padding_frames, window_size):
-    assert 2 * padding_frames < minimum_silent_frames
-    
-    num_frames = len(x) // window_size
-    mX = np.mean(x[:window_size * num_frames].reshape((-1, window_size)) ** 2, axis=1)
-    mX = 10 * np.log(mX)
-
-    silent_threshold = (np.max(mX) + np.min(mX)) / 2
-    
-    voiced = mX > silent_threshold
-
+def get_silent_ranges(voiced):
     silent_to_voiced = np.where((~voiced[:-1]) & voiced[1:])[0] + 1 # The position where the voice starts
     voiced_to_silent = np.where((voiced[:-1]) & ~voiced[1:])[0] + 1 # The position where the silence starts
     if not voiced[0]:
@@ -98,23 +88,25 @@ def split_voiced(x, minimum_silent_frames, padding_frames, window_size):
     if not voiced[-1]:
         # Eliminate the succeeding silence
         voiced_to_silent = voiced_to_silent[:-1]
-    silent_ranges = np.stack([voiced_to_silent, silent_to_voiced]).T
+    return np.stack([voiced_to_silent, silent_to_voiced]).T
 
+def get_split_points(x, minimum_silent_frames, window_size):
+    
+    num_frames = len(x) // window_size
+    mX = np.mean(x[:window_size * num_frames].reshape((-1, window_size)) ** 2, axis=1)
+    mX = 10 * np.log(mX)
+
+    silent_threshold = (np.max(mX) + np.min(mX)) / 2
+    
+    voiced = mX > silent_threshold
+    silent_ranges = get_silent_ranges(voiced)
     for s, e in silent_ranges:
         if e - s < minimum_silent_frames:
             voiced[s:e] = True
 
-    silent_to_voiced = np.where((~voiced[:-1]) & voiced[1:])[0] + 1 # The position where the voice starts
-    voiced_to_silent = np.where((voiced[:-1]) & ~voiced[1:])[0] + 1 # The position where the silence starts
-    if voiced[0]:
-        # Include the preceding voiced
-        silent_to_voiced = np.insert(silent_to_voiced, 0, 0)
-    if voiced[-1]:
-        # Include the succeeding voiced
-        voiced_to_silent = np.append(voiced_to_silent, len(voiced))
-    voiced_ranges = np.stack([silent_to_voiced, voiced_to_silent]).T
+    silent_ranges = get_silent_ranges(voiced)
 
-    return voiced_ranges + np.array([[-padding_frames, padding_frames]])
+    return (silent_ranges[:, 0] + silent_ranges[:, 1]) // 2
 
 def split_audio(args):
     sr = 16000
@@ -140,19 +132,22 @@ def split_audio(args):
         with open_index_data_for_write(audio_data_file) as data:
             for file in tqdm(audio_files):
                 x = readaudio(file, sr)
-                for start, end in split_voiced(x, minimum_silent_frames, padding_frames, window_size) * window_size:
-                    y = x[start:end].astype(np.float64)
+                split_points = get_split_points(x, minimum_silent_frames, window_size) * window_size
+                for i in range(len(split_points) + 1):
+                    start = split_points[i - 1] if i > 0 else 0
+                    end = split_points[i] if i < len(split_points) else len(x)
                     audioname = os.path.basename(file)
                     cache_file = 'data/cache/%s/%s.%d_%08d_%08d.npz' % (args.dataset, audioname, sr, start, end)
                     if os.path.exists(cache_file):
                         with np.load(cache_file) as f:
                             audio = f['audio']
                     else:
+                        y = x[start:end].astype(np.float64)
                         audio = encode_audio(y, f0_floor, f0_ceil)
                         os.makedirs(os.path.dirname(cache_file), exist_ok=True)
                         np.savez(cache_file, audio=audio)
-                    data.write(audio.astype(np.float32))
-                    segf.write(f'{file}|{start}|{end}\n')
+                        data.write(audio.astype(np.float32))
+                        segf.write(f'{file}|{start}|{end}\n')
 
 def analyze_files(name, files, eps=1e-20):
     f0_list = []

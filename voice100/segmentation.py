@@ -20,23 +20,26 @@ class Voice100Dataset:
         audio = self.audio_data[audio_start:audio_end, :]
         return audio
 
-def ctc_best_path(logits, labels, beam_size=50):
+def ctc_best_path(logits, labels, beam_size=8000):
 
     def get_path(paths, alignments, score):
         s = []
-        k = np.arange(alignments[-1].shape[0])
+        #k = np.arange(alignments[-1].shape[0])
+        k = np.argmax(alignments[-1])
+        k = np.array([k])
         for path, alighment in zip(reversed(paths), reversed(alignments)):
             s.append(alighment[k])
             k = path[k]
         s = np.array(list(reversed(s))).T # (beam_size, audio_seq_len)
         si = np.argsort(score)[::-1]
-        return s[si], score[si]
+        return s, np.array([0.0]) #s[si], score[si]
 
     # Expand label with blanks
     import numpy as np
     tmp = labels
     labels = np.zeros(labels.shape[0] * 2 + 1, dtype=np.int32)
     labels[1::2] = tmp
+    print(decode_text(labels[:10]))
 
     paths = [
         np.zeros([1], dtype=np.int32)
@@ -47,47 +50,69 @@ def ctc_best_path(logits, labels, beam_size=50):
     score = np.zeros([1], dtype=np.float32)
 
     for i in tqdm(range(1, logits.shape[0])):
+
+        alignment_min = labels.shape[0] * i / logits.shape[0] - (beam_size // 2)
+        alignment_max = labels.shape[0] * i / logits.shape[0] + (beam_size - beam_size // 2)
+
         # Keep the current position
         path1 = np.zeros([labels.shape[0]], dtype=np.int32) - 1
-        score1 = np.zeros([labels.shape[0]], dtype=np.float32)
-        k = np.nonzero(alignments[-1] < labels.shape[0])
+        score1 = np.zeros([labels.shape[0]], dtype=np.float32)-1e9
+        k, = np.nonzero((alignments[-1] < labels.shape[0]) &
+            (alignments[-1] >= alignment_min) &
+            (alignments[-1] < alignment_max))            
         v = alignments[-1][k]
         path1[v] = k
         score1[v] = score[k] + logits[i, labels[v]]
 
         # Move forward
         path2 = np.zeros([labels.shape[0]], dtype=np.int32) - 1
-        score2 = np.zeros([labels.shape[0]], dtype=np.float32)
-        k = np.nonzero(alignments[-1] + 1 < labels.shape[0])
+        score2 = np.zeros([labels.shape[0]], dtype=np.float32) - 1e9
+        k, = np.nonzero((alignments[-1] + 1 < labels.shape[0]) &
+            (alignments[-1] >= alignment_min) &
+            (alignments[-1] < alignment_max))            
         v = (alignments[-1] + 1)[k]
         path2[v] = k
         score2[v] = score[k] + logits[i, labels[v]]
 
         # Skip blank and move forward
         path3 = np.zeros([labels.shape[0]], dtype=np.int32) - 1
-        score3 = np.zeros([labels.shape[0]], dtype=np.float32)
-        k = np.nonzero(alignments[-1] + 2 < labels.shape[0])
+        score3 = np.zeros([labels.shape[0]], dtype=np.float32)-1e9
+        k, = np.nonzero((alignments[-1] + 2 < labels.shape[0]) &
+            (alignments[-1] >= alignment_min) &
+            (alignments[-1] < alignment_max))            
         v = (alignments[-1] + 2)[k]
         path3[v] = k
         score3[v] = score[k] + logits[i, labels[v]]
+        #print(path3[:10])
+        #print(score3[:10])
 
-        score = np.where(score1 > score2, score1, score2)
-        path = np.where(score1 > score2, path1, path2)
-        score = np.where((score3 > score) & (labels != 0), score3, score)
-        path = np.where((score3 > score) & (labels != 0), path3, path)
-
+        k = (score1 > score2)
+        score = np.where(k, score1, score2)
+        path = np.where(k, path1, path2)
+        #print('a')
+        #print(path[:10])
+        #print(score[:10])
+        #print((score3 > score))
+        #print(path.shape)
+        #print(path3.shape)
+        k = (score3 > score) & (labels != 0)
+        score = np.where(k, score3, score)
+        path = np.where(k, path3, path)
+        #print('b')
+        #print(path[:10])
+        #print(score[:10])
+        #print(score)
         alignment, = np.nonzero(path >= 0)
-        if len(alignment) > beam_size * 2:
-            k = np.argsort(score[alignment])
-            alignment = alignment[k[-beam_size:]]
-        paths.append(path[alignment])
-        score = score[alignment]
+        alignment = alignment.copy()
+        paths.append(path[alignment].copy())
+        score = score[alignment].copy()
         alignments.append(alignment)
         
-        if False:
-            if i % 400 == 0:
-                best_path, score = get_path(paths, alignments, score)
-                for p, s in zip(best_path, score):
+        if True:
+            if i % 5000 == 0:
+                best_path, escore = get_path(paths, alignments, score)
+                #k = np.argsort(score)[-1:]
+                for p, s in zip(best_path, escore):
                     t = decode_text([labels[a] for a in p])
                     print(f'step: {i:4d} {s:.5f} {t}')
                     #print('alignment:', alignment.tolist())
@@ -140,7 +165,7 @@ def phoneme(args):
 def best_path(args):
     sr = 16000
     with np.load('data/%s_phoneme_%d.npz' % (args.dataset, sr)) as f:
-        logits = f['data']
+        logits = np.log(f['data'])
     
     #with np.load('a.npz') as f:
     #    logits = f['logits']
