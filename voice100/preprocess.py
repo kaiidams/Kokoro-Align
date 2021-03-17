@@ -149,8 +149,10 @@ def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n
                 file = os.path.join(CORPUSDATA_CSS10JA_PATH, id_)
                 assert '..' not in file # Just make sure it is under the current directory.
                 y, sr = torchaudio.load(file)
+                assert y.shape[0] == 1
                 assert sr == expected_sample_rate
-                mfcc = mfcc_transform(y)
+                y = y[0]
+                mfcc = mfcc_transform(y).T
                 textf.write(encoded)
                 audiof.write(mfcc.numpy().astype(np.float32))
 
