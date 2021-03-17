@@ -79,6 +79,9 @@ def train_loop(dataloader, model, loss_fn, optimizer):
     size = len(dataloader.dataset)
     model.train()
     for batch, (text, audio, text_len) in enumerate(dataloader):
+        text = text.cuda()
+        audio = audio.cuda()
+        text_len = text_len.cuda()
         logits, probs_len = model(audio)
         probs = torch.softmax(logits, dim=-1)
         text = text.transpose(0, 1)
@@ -120,6 +123,9 @@ def train(args):
     model = AudioToChar(n_mfcc=40, hidden_dim=128, vocab_size=29)
     loss_fn = nn.CTCLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    loss_fn = loss_fn.cuda()
+    model = model.cuda()
+    optimizer = optimizer.cuda()
 
     ds = TextAudioDataset(
         text_file=f'data/{args.dataset}_text.npz',
