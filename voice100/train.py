@@ -126,6 +126,8 @@ def train(args):
     loss_fn = loss_fn.cuda()
     model = model.cuda()
 
+    CKPT_PATH = './model/ctc.pth'
+
     ds = TextAudioDataset(
         text_file=f'data/{args.dataset}_text.npz',
         audio_file=f'data/{args.dataset}_audio.npz')
@@ -134,13 +136,27 @@ def train(args):
     train_dataloader = DataLoader(train_ds, batch_size=128, shuffle=True, num_workers=0, collate_fn=generate_batch)
     test_dataloader = DataLoader(test_ds, batch_size=128, shuffle=False, num_workers=0, collate_fn=generate_batch)
 
+    if os.path.exists(CKPT_PATH):
+        checkpoint = torch.load(PATH)
+        model.load_state_dict(checkpoint)
+        epoch = 17
+        #model.load_state_dict(checkpoint['model_state_dict'])
+        #optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        #epoch = checkpoint['epoch']
+        #loss = checkpoint['loss']
+    else:
+        epoch = 0
+
     epochs = 100
-    for t in range(epochs):
+    for t in range(epoch, epochs):
         print(f"Epoch {t+1}\n-------------------------------")
         train_loop(train_dataloader, model, loss_fn, optimizer)
         #test_loop(test_dataloader, model, loss_fn, optimizer)
-        PATH = './model/ctc.pth'
-        torch.save(model.state_dict(), PATH)
+        torch.save({
+            'epoch': ephch,
+            'model': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            }, PATH)
 
 def evaluate(args):
     from .encoder import decode_text, merge_repeated
