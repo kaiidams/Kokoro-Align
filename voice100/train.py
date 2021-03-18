@@ -1,6 +1,7 @@
 # Copyright (C) 2021 Katsuya Iida. All rights reserved.
 
 import argparse
+import os
 import numpy as np
 import torch
 from torch import nn
@@ -104,13 +105,15 @@ def test_loop(dataloader, model, loss_fn, optimizer):
     test_loss = 0
     model.eval()
     for batch, (text, audio) in enumerate(dataloader):
-        logits = model(audio)
-        #print(logits.shape)
-        text_lengths = torch.ones([text.shape[1]], dtype=torch.int32) * text.shape[0]
-        audio_lengths = torch.ones([audio.shape[1]], dtype=torch.int32) * audio.shape[0]
+        text = text.cuda()
+        audio = audio.cuda()
+        text_len = text_len.cuda()
+        logits, probs_len = model(audio)
+        logits, probs_len = model(audio)
+        log_probs = nn.functional.log_softmax(logits, dim=-1)
         text = text.transpose(0, 1)
         #print(logits.shape, text.shape, audio_lengths.shape, text_lengths.shape)
-        loss = loss_fn(logits, text, audio_lengths, text_lengths)
+        loss = loss_fn(log_probs, text, probs_len, text_len)
 
         test_loss += loss.item()
 
@@ -137,7 +140,7 @@ def train(args):
     test_dataloader = DataLoader(test_ds, batch_size=128, shuffle=False, num_workers=0, collate_fn=generate_batch)
 
     if os.path.exists(CKPT_PATH):
-        checkpoint = torch.load(PATH)
+        checkpoint = torch.load(CKPT_PATH)
         model.load_state_dict(checkpoint)
         epoch = 17
         #model.load_state_dict(checkpoint['model_state_dict'])
@@ -151,12 +154,12 @@ def train(args):
     for t in range(epoch, epochs):
         print(f"Epoch {t+1}\n-------------------------------")
         train_loop(train_dataloader, model, loss_fn, optimizer)
-        #test_loop(test_dataloader, model, loss_fn, optimizer)
+        test_loop(test_dataloader, model, loss_fn, optimizer)
         torch.save({
             'epoch': ephch,
             'model': model.state_dict(),
             'optimizer': optimizer.state_dict(),
-            }, PATH)
+            }, CKPT_PATH)
 
 def evaluate(args):
     from .encoder import decode_text, merge_repeated
