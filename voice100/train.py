@@ -143,7 +143,11 @@ def train(args):
         torch.save(model.state_dict(), PATH)
 
 def evaluate(args):
-    model = AudioToChar(n_mfcc=40, hidden_dim=128, vocab_size=29)
+    from .encoder import decode_text, merge_repeated
+
+    vocab_size = 29
+
+    model = AudioToChar(n_mfcc=40, hidden_dim=128, vocab_size=vocab_size)
     model.eval()
     state = torch.load('./model/ctc.pth', map_location=torch.device('cpu'))
     model.load_state_dict(state)
@@ -155,10 +159,16 @@ def evaluate(args):
     test_dataloader = DataLoader(test_ds, batch_size=128, shuffle=False, num_workers=0, collate_fn=generate_batch)
     for batch, (text, audio, text_len) in enumerate(test_dataloader):
         logits, logits_len = model(audio)
-        probs = torch.softmax(logits, axis=-1)
-        for i in range(probs.shape[0]):
-            print(decode_text(probs[i, :probs_len[i]]))
-
+        # logits: [audio_len, batch_size, vocab_size]
+        preds = torch.argmax(logits, axis=-1).T
+        preds_len = logits_len
+        for i in range(preds.shape[0]):
+            pred_decoded = decode_text(preds[i, :preds_len[i]])
+            pred_decoded = merge_repeated(pred_decoded)
+            target_decoded = decode_text(text[:text_len[i], i])
+            print('----')
+            print(target_decoded)
+            print(pred_decoded)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
