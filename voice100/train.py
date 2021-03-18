@@ -104,7 +104,7 @@ def test_loop(dataloader, model, loss_fn, optimizer):
     size = len(dataloader.dataset)
     test_loss = 0
     model.eval()
-    for batch, (text, audio) in enumerate(dataloader):
+    for batch, (text, audio, text_len) in enumerate(dataloader):
         text = text.cuda()
         audio = audio.cuda()
         text_len = text_len.cuda()
@@ -119,6 +119,7 @@ def test_loop(dataloader, model, loss_fn, optimizer):
 
     test_loss /= size
     print(f"Avg loss: {test_loss:>8f} \n")
+    return test_loss
 
 def train(args):
 
@@ -142,7 +143,7 @@ def train(args):
     if os.path.exists(CKPT_PATH):
         checkpoint = torch.load(CKPT_PATH)
         model.load_state_dict(checkpoint)
-        epoch = 17
+        epoch = 16
         #model.load_state_dict(checkpoint['model_state_dict'])
         #optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         #epoch = checkpoint['epoch']
@@ -154,11 +155,12 @@ def train(args):
     for t in range(epoch, epochs):
         print(f"Epoch {t+1}\n-------------------------------")
         train_loop(train_dataloader, model, loss_fn, optimizer)
-        test_loop(test_dataloader, model, loss_fn, optimizer)
+        test_loss = test_loop(test_dataloader, model, loss_fn, optimizer)
         torch.save({
-            'epoch': ephch,
+            'epoch': epoch + 1,
             'model': model.state_dict(),
             'optimizer': optimizer.state_dict(),
+            'loss': test_loss,
             }, CKPT_PATH)
 
 def evaluate(args):
