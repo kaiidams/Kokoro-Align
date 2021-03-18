@@ -63,11 +63,11 @@ def get_silent_ranges(voiced):
         voiced_to_silent = voiced_to_silent[:-1]
     return np.stack([voiced_to_silent, silent_to_voiced]).T
 
-def get_split_points(x, minimum_silent_frames, window_size):
-    
+def get_split_points(x, minimum_silent_frames, window_size, eps=1e-12):
+
     num_frames = len(x) // window_size
     mX = np.mean(x[:window_size * num_frames].reshape((-1, window_size)) ** 2, axis=1)
-    mX = 10 * np.log(mX)
+    mX = 10 * np.log(mX + eps)
 
     silent_threshold = (np.max(mX) + np.min(mX)) / 2
     
@@ -81,14 +81,12 @@ def get_split_points(x, minimum_silent_frames, window_size):
 
     return (silent_ranges[:, 0] + silent_ranges[:, 1]) // 2
 
-def split_audio(args):
-    sr = 16000
-    window_size = 512 # 46ms
+def split_audio(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_fft=1024):
+    window_size = n_fft // 2 # 46ms
     minimum_silent_duration = 0.5 # 500ms
     padding_duration = 0.05 # 50ms
-    minimum_silent_frames = minimum_silent_duration * sr / window_size
-    padding_frames = min(1, int(padding_duration * sr // window_size))
-    f0_floor, f0_ceil = (57.46701428196299, 196.7528135117272) # Low male voice
+    minimum_silent_frames = minimum_silent_duration * expected_sample_rate / window_size
+    padding_frames = min(1, int(padding_duration * expected_sample_rate // window_size))
 
     # Reading audio files
     audio_list_file = f'data/{args.dataset}_audio_files.txt'
@@ -98,29 +96,33 @@ def split_audio(args):
         audio_files = [file for file in audio_files if file]
     assert all(os.path.exists(file) for file in audio_files)
 
-    audio_segment_file = f'data/{args.dataset}_segment_{sr}.txt'
-    audio_data_file = f'data/{args.dataset}_audio_{sr}.npz'
+    audio_segment_file = f'data/{args.dataset}_segment.txt'
+    audio_data_file = f'data/{args.dataset}_audio.npz'
+
+    mfcc_transform = torchaudio.transforms.MFCC(
+        sample_rate=expected_sample_rate,
+        n_mfcc=n_mfcc,
+        melkwargs={'n_fft': n_fft, 'n_mels': n_mels, 'hop_length': n_fft // 2})
 
     with open(audio_segment_file, 'w') as segf:
         with open_index_data_for_write(audio_data_file) as data:
+            seg_id = 1
             for file in tqdm(audio_files):
-                x = readaudio(file, sr)
-                split_points = get_split_points(x, minimum_silent_frames, window_size) * window_size
+                y, sr = torchaudio.load(file)
+                assert y.shape[0] == 1
+                assert sr == expected_sample_rate
+                y = torch.mean(y, axis=0) # to mono
+                split_points = get_split_points(y.numpy(), minimum_silent_frames, window_size) * window_size
                 for i in range(len(split_points) + 1):
                     start = split_points[i - 1] if i > 0 else 0
-                    end = split_points[i] if i < len(split_points) else len(x)
-                    audioname = os.path.basename(file)
-                    cache_file = 'data/cache/%s/%s.%d_%08d_%08d.npz' % (args.dataset, audioname, sr, start, end)
-                    if os.path.exists(cache_file):
-                        with np.load(cache_file) as f:
-                            audio = f['audio']
-                    else:
-                        y = x[start:end].astype(np.float64)
-                        audio = encode_audio(y, f0_floor, f0_ceil)
-                        os.makedirs(os.path.dirname(cache_file), exist_ok=True)
-                        np.savez(cache_file, audio=audio)
-                        data.write(audio.astype(np.float32))
-                        segf.write(f'{file}|{start}|{end}\n')
+                    end = split_points[i] if i < len(split_points) else len(y)
+                    mfcc = mfcc_transform(y[start:end]).T
+                    wavfile = f'data/{args.dataset}/{args.dataset}_{seg_id:05d}.wav'
+                    seg_id += 1
+                    os.makedirs(os.path.dirname(wavfile), exist_ok=True)
+                    torchaudio.save(wavfile, y[start:end].unsqueeze(0), sr)
+                    data.write(mfcc.numpy().astype(np.float32))
+                    segf.write(f'{file}|{start}|{end}\n')
 
 def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_fft=1024):
 
@@ -151,20 +153,17 @@ def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n
                 y, sr = torchaudio.load(file)
                 assert y.shape[0] == 1
                 assert sr == expected_sample_rate
-                y = y[0]
+                y = np.mean(y, axis=0) # to mono
                 mfcc = mfcc_transform(y).T
                 textf.write(encoded)
                 audiof.write(mfcc.numpy().astype(np.float32))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--split', action='store_true', help='Split audio and encode with WORLD vocoder.')
-    parser.add_argument('--css10ja', action='store_true', help='Analyze F0 of sampled data.')
+    parser.add_argument('--dataset', default='css10ja', help='Dataset name')
     args = parser.parse_args()
 
-    if args.split:
+    if args.dataset != 'css10ja':
         split_audio(args)
-    elif args.css10ja:
-        preprocess_css10ja(args)
     else:
-        raise ValueError('Unknown command')
+        preprocess_css10ja(args)

@@ -10,7 +10,7 @@ from torch.nn.utils.rnn import pack_sequence, pad_sequence, pad_packed_sequence
 
 BLANK_IDX = 0
 
-class IndexArrayDataset:
+class IndexArrayDataset(Dataset):
 
     def __init__(self, file):
         with np.load(file) as f:

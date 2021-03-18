@@ -20,26 +20,80 @@ class Voice100Dataset:
         audio = self.audio_data[audio_start:audio_end, :]
         return audio
 
-def ctc_best_path(logits, labels, beam_size=8000):
+def ctc_best_path2(logits, labels):
+  # Expand label with blanks
+  import numpy as np
+  tmp = labels
+  labels = np.zeros(labels.shape[0] * 2 + 1, dtype=np.int32)
+  labels[1::2] = tmp
+
+  cands = [
+      (logits[0, labels[0]], [labels[0]])
+  ]
+  for i in tqdm(range(1, logits.shape[0])):
+    next_cands = []
+    for pos, (logit1, path1) in enumerate(cands):
+      logit1 = logit1 + logits[i, labels[pos]]
+      path1 = path1 + [labels[pos]]
+      next_cands.append((logit1, path1))
+
+    for pos, (logit2, path2) in enumerate(cands):
+      if pos + 1 < len(labels):
+        logit2 = logit2 + logits[i, labels[pos + 1]]
+        path2 = path2 + [labels[pos + 1]]
+        if pos + 1 == len(next_cands):
+          next_cands.append((logit2, path2))
+        else:
+          logit, _ = next_cands[pos + 1]
+          if logit2 > logit:
+            next_cands[pos + 1] = (logit2, path2)
+            
+    for pos, (logit3, path3) in enumerate(cands):
+      if pos + 2 < len(labels) and labels[pos + 1] == 0:
+        logit3 = logit3 + logits[i, labels[pos + 2]]
+        path3.append(labels[pos + 2])
+        if pos + 2 == len(next_cands):
+          next_cands.append((logit3, path3))
+        else:
+          logit, _ = next_cands[pos + 2]
+          if logit3 > logit:
+            next_cands[pos + 2] = (logit3, path3)
+            
+    cands = next_cands
+
+  return cands[-1], 0
+  
+def ctc_best_path(logits, labels, beam_size=80000):
 
     def get_path(paths, alignments, score):
         s = []
         #k = np.arange(alignments[-1].shape[0])
         k = np.argmax(alignments[-1])
-        k = np.array([k])
+        k = np.array([k], dtype=np.int32)
         for path, alighment in zip(reversed(paths), reversed(alignments)):
             s.append(alighment[k])
             k = path[k]
         s = np.array(list(reversed(s))).T # (beam_size, audio_seq_len)
         si = np.argsort(score)[::-1]
-        return s, np.array([0.0]) #s[si], score[si]
+        return s, score[k] #s[si], score[si]
 
     # Expand label with blanks
     import numpy as np
     tmp = labels
     labels = np.zeros(labels.shape[0] * 2 + 1, dtype=np.int32)
     labels[1::2] = tmp
-    print(decode_text(labels[:10]))
+
+    if False:
+        print(decode_text(labels[:10]))
+
+        print(logits.shape)
+        for i in range(1000):
+            x = logits[i]
+            x = (np.exp(x) * 100)
+
+            print(x.astype(int))
+            #print(np.sum(x))
+        hoge
 
     paths = [
         np.zeros([1], dtype=np.int32)
@@ -51,15 +105,15 @@ def ctc_best_path(logits, labels, beam_size=8000):
 
     for i in tqdm(range(1, logits.shape[0])):
 
-        alignment_min = labels.shape[0] * i / logits.shape[0] - (beam_size // 2)
-        alignment_max = labels.shape[0] * i / logits.shape[0] + (beam_size - beam_size // 2)
+        alignment_min = (labels.shape[0] - beam_size) * i / logits.shape[0]
+        alignment_max = (labels.shape[0] - beam_size) * i / logits.shape[0] + beam_size
 
         # Keep the current position
         path1 = np.zeros([labels.shape[0]], dtype=np.int32) - 1
         score1 = np.zeros([labels.shape[0]], dtype=np.float32)-1e9
         k, = np.nonzero((alignments[-1] < labels.shape[0]) &
-            (alignments[-1] >= alignment_min) &
-            (alignments[-1] < alignment_max))            
+            (alignments[-1] >= alignment_min)
+            & (alignments[-1] < alignment_max))            
         v = alignments[-1][k]
         path1[v] = k
         score1[v] = score[k] + logits[i, labels[v]]
@@ -68,8 +122,8 @@ def ctc_best_path(logits, labels, beam_size=8000):
         path2 = np.zeros([labels.shape[0]], dtype=np.int32) - 1
         score2 = np.zeros([labels.shape[0]], dtype=np.float32) - 1e9
         k, = np.nonzero((alignments[-1] + 1 < labels.shape[0]) &
-            (alignments[-1] >= alignment_min) &
-            (alignments[-1] < alignment_max))            
+            (alignments[-1] + 1 >= alignment_min)
+            & (alignments[-1] + 1 < alignment_max))            
         v = (alignments[-1] + 1)[k]
         path2[v] = k
         score2[v] = score[k] + logits[i, labels[v]]
@@ -78,13 +132,23 @@ def ctc_best_path(logits, labels, beam_size=8000):
         path3 = np.zeros([labels.shape[0]], dtype=np.int32) - 1
         score3 = np.zeros([labels.shape[0]], dtype=np.float32)-1e9
         k, = np.nonzero((alignments[-1] + 2 < labels.shape[0]) &
-            (alignments[-1] >= alignment_min) &
-            (alignments[-1] < alignment_max))            
+            (alignments[-1] + 2 >= alignment_min)
+            & (alignments[-1] + 2 < alignment_max))            
         v = (alignments[-1] + 2)[k]
         path3[v] = k
         score3[v] = score[k] + logits[i, labels[v]]
         #print(path3[:10])
         #print(score3[:10])
+
+        # Skip blank and move forward
+        path4 = np.zeros([labels.shape[0]], dtype=np.int32) - 1
+        score4 = np.zeros([labels.shape[0]], dtype=np.float32)-1e9
+        k, = np.nonzero((alignments[-1] + 3 < labels.shape[0]) &
+            (alignments[-1] + 3 >= alignment_min)
+            & (alignments[-1] + 3 < alignment_max))            
+        v = (alignments[-1] + 3)[k]
+        path4[v] = k
+        score4[v] = score[k] + logits[i, labels[v]]
 
         k = (score1 > score2)
         score = np.where(k, score1, score2)
@@ -98,6 +162,10 @@ def ctc_best_path(logits, labels, beam_size=8000):
         k = (score3 > score) & (labels != 0)
         score = np.where(k, score3, score)
         path = np.where(k, path3, path)
+
+        k = (score4 > score) & (labels != 0)
+        score = np.where(k, score4, score)
+        path = np.where(k, path4, path)
         #print('b')
         #print(path[:10])
         #print(score[:10])
@@ -109,9 +177,10 @@ def ctc_best_path(logits, labels, beam_size=8000):
         alignments.append(alignment)
         
         if True:
-            if i % 5000 == 0:
+            if i % 1000 == 0:
                 best_path, escore = get_path(paths, alignments, score)
                 #k = np.argsort(score)[-1:]
+                print('\n----')
                 for p, s in zip(best_path, escore):
                     t = decode_text([labels[a] for a in p])
                     print(f'step: {i:4d} {s:.5f} {t}')
@@ -121,52 +190,46 @@ def ctc_best_path(logits, labels, beam_size=8000):
     return get_path(paths, alignments, score)
 
 def phoneme(args):
-    from voice100.train_ctc import Voice100CTCTask
-    from voice100.data_pipeline import NORMPARAMS
-    import tensorflow as tf
     import re
     from glob import glob
+    import torch
+    sr = 22050
+    from .train import AudioToChar
 
-    sr = 16000
-    task = Voice100CTCTask(args)
-    model = task.create_model()
-    ckpt = tf.train.Checkpoint(model=model)
-    ckpt_manager = tf.train.CheckpointManager(ckpt, args.model_dir, max_to_keep=5)
-    if not ckpt_manager.latest_checkpoint:
-        raise ValueError()
-    ckpt.restore(ckpt_manager.latest_checkpoint).expect_partial()
+    model = AudioToChar(n_mfcc=40, hidden_dim=128, vocab_size=29)
+    state = torch.load('./model/ctc.pth', map_location=torch.device('cpu'))
+    model.load_state_dict(state)
+    model.eval()
 
-    @tf.function(input_signature=[
-        tf.TensorSpec(shape=[None, None, task.params['audio_dim']], dtype=tf.float32),
-        tf.TensorSpec(shape=[None], dtype=tf.int32),
-    ])
-    def eval_step(audio, audio_len):
-        audio_mask = tf.sequence_mask(audio_len, maxlen=tf.shape(audio)[1])
-        logits = model(audio, mask=audio_mask)
-        logits = tf.nn.softmax(logits, axis=2)
-        return logits
+    from .train import IndexArrayDataset
+    ds = IndexArrayDataset('data/%s_audio.npz' % (args.dataset,))
 
     from .preprocess import open_index_data_for_write
+    from torch.nn.utils.rnn import pack_sequence, pad_sequence, pad_packed_sequence
 
-    ds = Voice100Dataset('data/%s_audio_%d.npz' % (args.dataset, sr))
-    with open_index_data_for_write('data/%s_phoneme_%d.npz' % (args.dataset, sr)) as file:
-        with open('data/%s_phoneme_%d.txt' % (args.dataset, sr), 'wt') as txtfile:
-            for example in tqdm(ds):
-                audio = example
-                audio = (audio - NORMPARAMS[:, 0]) / NORMPARAMS[:, 1]
-                audio = audio[np.newaxis, :, :]
-                audio_len = [audio.shape[1]]
-                logits = eval_step(audio, audio_len)
-                x = np.argmax(logits.numpy(), axis=2)
-
-                file.write(logits[0])
-                txtfile.write(merge_repeated(decode_text(x[0])) + '\n')
+    with torch.no_grad():
+        with open_index_data_for_write('data/%s_phoneme.npz' % (args.dataset,)) as file:
+            with open('data/%s_phoneme.txt' % (args.dataset,), 'wt') as txtfile:
+                for i, audio in enumerate(tqdm(ds)):
+                    audio = pack_sequence([audio], enforce_sorted=False)
+                    logits, logits_len = model(audio)
+                    # logits: [audio_len, batch_size, vocab_size]
+                    preds = torch.argmax(logits, axis=-1).T
+                    preds_len = logits_len
+                    pred_decoded = decode_text(preds[0, :preds_len[0]])
+                    pred_decoded = merge_repeated(pred_decoded)
+                    print(logits[:, 0, :].shape)
+                    print(logits[:, 0, :].dtype)
+                    file.write(logits[:, 0, :])
+                    txtfile.write(f'{i+1}|{pred_decoded}\n')
 
 def best_path(args):
-    sr = 16000
-    with np.load('data/%s_phoneme_%d.npz' % (args.dataset, sr)) as f:
-        logits = np.log(f['data'])
+    import torch
+    from torch import nn
+    with np.load('data/%s_phoneme.npz' % (args.dataset,)) as f:
+        logits = f['data']
     
+    print(np.min(logits))
     #with np.load('a.npz') as f:
     #    logits = f['logits']
 
@@ -177,6 +240,12 @@ def best_path(args):
         k = decode_text(k)
         #print(k)
         #logits = np.concatenate([logits]*10, axis=1)
+    logits = torch.from_numpy(logits)
+    #print(np.min(logits.numpy()))
+    print(logits.numpy())
+    logits = logits * 10
+    log_probs = nn.functional.log_softmax(logits, dim=-1)
+    log_probs = log_probs.numpy()
 
     s = ''
     with open('data/%s_transcript.txt' % (args.dataset)) as f:
@@ -187,13 +256,12 @@ def best_path(args):
 
     labels = encode_text(s)
     print(labels.shape)
-    best_path, score = ctc_best_path(logits, labels)
+    best_path, score = ctc_best_path(log_probs, labels)
     np.savez('data/%s_best_path.npz' % (args.dataset), best_path=best_path[0], score=score[0])
     l = decode_text([0 if x % 2 == 0 else labels[x // 2] for x in best_path[0]])
     print(l)
 
 def align(args):
-    sr = 16000
 
     s = ''
     with open('data/%s_transcript.txt' % (args.dataset)) as f:
@@ -207,24 +275,24 @@ def align(args):
     with np.load('data/%s_best_path.npz' % (args.dataset)) as f:
         best_path = f['best_path']
 
-    file = 'data/%s_audio_%d.npz' % (args.dataset, sr)
+    file = 'data/%s_audio.npz' % (args.dataset,)
     with np.load(file) as f:
         audio_indices = f['indices']
         #audio_data = f['data']
 
-    for i in range(len(audio_indices)):
-        audio_start = audio_indices[i - 1] if i > 0 else 0 
-        audio_end = audio_indices[i]
-        text_start = best_path[audio_start]
-        text_end = best_path[audio_end] if audio_end < len(best_path) else len(labels)
-        
-        text_start = (text_start) // 2
-        text_end = (text_end) // 2
+    with open(f'data/{args.dataset}_alignment.txt', 'wt') as f:
+        for i in range(len(audio_indices)):
+            audio_start = audio_indices[i - 1] if i > 0 else 0 
+            audio_end = audio_indices[i]
+            text_start = best_path[audio_start]
+            text_end = best_path[audio_end] if audio_end < len(best_path) else len(labels)
+            
+            text_start = (text_start) // 2
+            text_end = (text_end) // 2
 
-        s = labels[text_start:text_end]
-        s = decode_text(s)
-        print(i, s)
-
+            s = labels[text_start:text_end]
+            s = decode_text(s)
+            f.write(f'{i+1}|{s}\n')
 
 def main():
     parser = argparse.ArgumentParser()

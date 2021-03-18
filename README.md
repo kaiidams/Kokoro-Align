@@ -28,13 +28,13 @@ $ ls data/gongitsune_um_librivox_64kb_mp3/*.mp3 | sort > data/gongitsune_audio_f
 ### Encode and split data
 
 ```
-$ python -m voice100.preprocess --split --dataset gongitsune
+$ python -m voice100.preprocess --dataset gongitsune
 ```
 
 ### Estimate phonemes
 
 ```
-$ python -m voice100.segmentation --phoeneme --dataset gongitsune
+$ python -m voice100.segmentation --phoneme --dataset gongitsune
 ```
 
 ```

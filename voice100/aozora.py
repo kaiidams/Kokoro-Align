@@ -42,9 +42,11 @@ class AozoraParser:
 
         with open(outfile, 'wt') as self.outfile:
             node = self.soup.find(class_='metadata')
-            self._process_soup(node)
+            if node:
+                self._process_soup(node)
             node = self.soup.find(class_='main_text')
-            self._process_soup(node)
+            if node:
+                self._process_soup(node)
 
 def main(args):
     AozoraParser().process(args.infile, args.outfile)
