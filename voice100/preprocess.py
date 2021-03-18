@@ -81,7 +81,7 @@ def get_split_points(x, minimum_silent_frames, window_size, eps=1e-12):
 
     return (silent_ranges[:, 0] + silent_ranges[:, 1]) // 2
 
-def split_audio(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_fft=1024):
+def split_audio(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_fft=512):
     window_size = n_fft // 2 # 46ms
     minimum_silent_duration = 0.5 # 500ms
     padding_duration = 0.05 # 50ms
@@ -124,7 +124,7 @@ def split_audio(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_fft=10
                     data.write(mfcc.numpy().astype(np.float32))
                     segf.write(f'{file}|{start}|{end}\n')
 
-def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_fft=1024):
+def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_fft=512):
 
     args.dataset = 'css10ja'
 
