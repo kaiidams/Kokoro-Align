@@ -63,7 +63,7 @@ def ctc_best_path2(logits, labels):
 
   return cands[-1], 0
   
-def ctc_best_path(logits, labels, beam_size=80000):
+def ctc_best_path(logits, labels, beam_size=8000, max_move=3):
 
     def get_path(paths, alignments, score):
         s = []
@@ -82,6 +82,8 @@ def ctc_best_path(logits, labels, beam_size=80000):
     tmp = labels
     labels = np.zeros(labels.shape[0] * 2 + 1, dtype=np.int32)
     labels[1::2] = tmp
+
+    #hist = np.zeros([logits.shape[0] // 10 + 1, labels.shape[0]], np.float32) - 1e9
 
     if False:
         print(decode_text(labels[:10]))
@@ -105,77 +107,41 @@ def ctc_best_path(logits, labels, beam_size=80000):
 
     for i in tqdm(range(1, logits.shape[0])):
 
-        alignment_min = (labels.shape[0] - beam_size) * i / logits.shape[0]
-        alignment_max = (labels.shape[0] - beam_size) * i / logits.shape[0] + beam_size
+        alignment_min = (labels.shape[0] - beam_size) * i / logits.shape[0] - 10000
+        alignment_max = (labels.shape[0] - beam_size) * i / logits.shape[0] + beam_size + 10
 
-        # Keep the current position
-        path1 = np.zeros([labels.shape[0]], dtype=np.int32) - 1
-        score1 = np.zeros([labels.shape[0]], dtype=np.float32)-1e9
-        k, = np.nonzero((alignments[-1] < labels.shape[0]) &
-            (alignments[-1] >= alignment_min)
-            & (alignments[-1] < alignment_max))            
-        v = alignments[-1][k]
-        path1[v] = k
-        score1[v] = score[k] + logits[i, labels[v]]
+        next_path = np.zeros([max_move, labels.shape[0]], dtype=np.int32) - 1
+        next_score = np.zeros([max_move, labels.shape[0]], dtype=np.float32) - 1e9
 
-        # Move forward
-        path2 = np.zeros([labels.shape[0]], dtype=np.int32) - 1
-        score2 = np.zeros([labels.shape[0]], dtype=np.float32) - 1e9
-        k, = np.nonzero((alignments[-1] + 1 < labels.shape[0]) &
-            (alignments[-1] + 1 >= alignment_min)
-            & (alignments[-1] + 1 < alignment_max))            
-        v = (alignments[-1] + 1)[k]
-        path2[v] = k
-        score2[v] = score[k] + logits[i, labels[v]]
+        for j in range(max_move):
+            next_label_pos = alignments[-1] + j
+            k, = np.nonzero((next_label_pos < labels.shape[0]) &
+                (next_label_pos >= alignment_min)
+                & (next_label_pos < alignment_max))            
+            v = next_label_pos[k]
+            next_path[j, v] = k
+            next_score[j, v] = score[k] + logits[i, labels[v]]
+            if j == 2:
+                next_score[j, labels == 0] = -1e9
 
-        # Skip blank and move forward
-        path3 = np.zeros([labels.shape[0]], dtype=np.int32) - 1
-        score3 = np.zeros([labels.shape[0]], dtype=np.float32)-1e9
-        k, = np.nonzero((alignments[-1] + 2 < labels.shape[0]) &
-            (alignments[-1] + 2 >= alignment_min)
-            & (alignments[-1] + 2 < alignment_max))            
-        v = (alignments[-1] + 2)[k]
-        path3[v] = k
-        score3[v] = score[k] + logits[i, labels[v]]
-        #print(path3[:10])
-        #print(score3[:10])
+        k = np.argmax(next_score, axis=0)
+        next_path = np.choose(k, next_path)
+        next_score = np.choose(k, next_score)
 
-        # Skip blank and move forward
-        path4 = np.zeros([labels.shape[0]], dtype=np.int32) - 1
-        score4 = np.zeros([labels.shape[0]], dtype=np.float32)-1e9
-        k, = np.nonzero((alignments[-1] + 3 < labels.shape[0]) &
-            (alignments[-1] + 3 >= alignment_min)
-            & (alignments[-1] + 3 < alignment_max))            
-        v = (alignments[-1] + 3)[k]
-        path4[v] = k
-        score4[v] = score[k] + logits[i, labels[v]]
+        #if i % 10 == 0:
+        #    hist[i // 10, :] = next_score
 
-        k = (score1 > score2)
-        score = np.where(k, score1, score2)
-        path = np.where(k, path1, path2)
-        #print('a')
-        #print(path[:10])
-        #print(score[:10])
-        #print((score3 > score))
-        #print(path.shape)
-        #print(path3.shape)
-        k = (score3 > score) & (labels != 0)
-        score = np.where(k, score3, score)
-        path = np.where(k, path3, path)
-
-        k = (score4 > score) & (labels != 0)
-        score = np.where(k, score4, score)
-        path = np.where(k, path4, path)
         #print('b')
         #print(path[:10])
         #print(score[:10])
         #print(score)
-        alignment, = np.nonzero(path >= 0)
+        #print(next_path.shape)
+        alignment, = np.nonzero(next_path >= 0)
         alignment = alignment.copy()
-        paths.append(path[alignment].copy())
-        score = score[alignment].copy()
+        paths.append(next_path[alignment].copy())
+        score = next_score[alignment].copy()
         alignments.append(alignment)
-        
+
         if True:
             if i % 1000 == 0:
                 best_path, escore = get_path(paths, alignments, score)
@@ -187,6 +153,8 @@ def ctc_best_path(logits, labels, beam_size=80000):
                     #print('alignment:', alignment.tolist())
                     #print('score:', score.tolist())
 
+    #np.savez('data/a.npz', hist=hist)
+
     return get_path(paths, alignments, score)
 
 def phoneme(args):
@@ -196,9 +164,9 @@ def phoneme(args):
     sr = 22050
     from .train import AudioToChar
 
-    model = AudioToChar(n_mfcc=40, hidden_dim=128, vocab_size=29)
+    model = AudioToChar(n_mfcc=40, hidden_dim=256, vocab_size=29)
     state = torch.load('./model/ctc.pth', map_location=torch.device('cpu'))
-    model.load_state_dict(state)
+    model.load_state_dict(state['model'])
     model.eval()
 
     from .train import IndexArrayDataset
@@ -218,8 +186,8 @@ def phoneme(args):
                     preds_len = logits_len
                     pred_decoded = decode_text(preds[0, :preds_len[0]])
                     pred_decoded = merge_repeated(pred_decoded)
-                    print(logits[:, 0, :].shape)
-                    print(logits[:, 0, :].dtype)
+                    #print(logits[:, 0, :].shape)
+                    #print(logits[:, 0, :].dtype)
                     file.write(logits[:, 0, :])
                     txtfile.write(f'{i+1}|{pred_decoded}\n')
 
@@ -243,7 +211,7 @@ def best_path(args):
     logits = torch.from_numpy(logits)
     #print(np.min(logits.numpy()))
     print(logits.numpy())
-    logits = logits * 10
+    #logits = logits * 10
     log_probs = nn.functional.log_softmax(logits, dim=-1)
     log_probs = log_probs.numpy()
 
