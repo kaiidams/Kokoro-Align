@@ -142,15 +142,34 @@ def train(args):
         PATH = './model/ctc.pth'
         torch.save(model.state_dict(), PATH)
 
+def evaluate(args):
+    model = AudioToChar(n_mfcc=40, hidden_dim=128, vocab_size=29)
+    model.eval()
+    state = torch.load('./model/ctc.pth', map_location=torch.device('cpu'))
+    model.load_state_dict(state)
+
+    ds = TextAudioDataset(
+        text_file=f'data/{args.dataset}_text.npz',
+        audio_file=f'data/{args.dataset}_audio.npz')
+    train_ds, test_ds = torch.utils.data.random_split(ds, [len(ds) - len(ds) // 9, len(ds) // 9])
+    test_dataloader = DataLoader(test_ds, batch_size=128, shuffle=False, num_workers=0, collate_fn=generate_batch)
+    for batch, (text, audio, text_len) in enumerate(test_dataloader):
+        logits, logits_len = model(audio)
+        probs = torch.softmax(logits, axis=-1)
+        for i in range(probs.shape[0]):
+            print(decode_text(probs[i, :probs_len[i]]))
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--train', action='store_true', help='Split audio and encode with WORLD vocoder.')
+    parser.add_argument('--eval', action='store_true', help='Split audio and encode with WORLD vocoder.')
     parser.add_argument('--dataset', default='css10ja', help='Analyze F0 of sampled data.')
     args = parser.parse_args()
 
     if args.train:
         train(args)
-    elif args.css10ja:
-        preprocess_css10ja(args)
+    elif args.eval:
+        evaluate(args)
     else:
         raise ValueError('Unknown command')
