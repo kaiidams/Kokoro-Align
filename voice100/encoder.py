@@ -24,3 +24,9 @@ def encode_text2(text):
 
 def decode_text2(encoded):
     return ' '.join(vocab2[x] for x in encoded)
+
+def merge_repeated2(text):
+    import re
+    r = re.sub(r'(.+)( \1)+', r'\1', text).replace(' _', '').replace('_ ', '')
+    if r == '_': r = ''
+    return r

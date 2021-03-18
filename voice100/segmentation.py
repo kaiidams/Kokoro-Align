@@ -164,8 +164,8 @@ def phoneme(args):
     sr = 22050
     from .train import AudioToChar
 
-    model = AudioToChar(n_mfcc=40, hidden_dim=256, vocab_size=29)
-    state = torch.load('./model/ctc.pth', map_location=torch.device('cpu'))
+    model = AudioToChar(n_mfcc=40, hidden_dim=128, vocab_size=35)
+    state = torch.load('./model/ctc-v3.pth', map_location=torch.device('cpu'))
     model.load_state_dict(state['model'])
     model.eval()
 
@@ -174,6 +174,7 @@ def phoneme(args):
 
     from .preprocess import open_index_data_for_write
     from torch.nn.utils.rnn import pack_sequence, pad_sequence, pad_packed_sequence
+    from voice100.encoder import decode_text2, merge_repeated2
 
     with torch.no_grad():
         with open_index_data_for_write('data/%s_phoneme.npz' % (args.dataset,)) as file:
@@ -184,8 +185,8 @@ def phoneme(args):
                     # logits: [audio_len, batch_size, vocab_size]
                     preds = torch.argmax(logits, axis=-1).T
                     preds_len = logits_len
-                    pred_decoded = decode_text(preds[0, :preds_len[0]])
-                    pred_decoded = merge_repeated(pred_decoded)
+                    pred_decoded = decode_text2(preds[0, :preds_len[0]])
+                    pred_decoded = merge_repeated2(pred_decoded)
                     #print(logits[:, 0, :].shape)
                     #print(logits[:, 0, :].dtype)
                     file.write(logits[:, 0, :])
