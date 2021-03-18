@@ -149,7 +149,7 @@ def evaluate(args):
 
     model = AudioToChar(n_mfcc=40, hidden_dim=128, vocab_size=vocab_size)
     model.eval()
-    state = torch.load('./model/ctc.pth', map_location=torch.device('cpu'))
+    state = torch.load('./model/ctc_fft512.pth', map_location=torch.device('cpu'))
     model.load_state_dict(state)
 
     ds = TextAudioDataset(
