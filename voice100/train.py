@@ -76,13 +76,11 @@ def generate_batch(data_batch):
         audio_batch = pack_sequence(audio_batch, enforce_sorted=False)
         return text_batch, audio_batch, text_len
 
-def train_loop(dataloader, model, loss_fn, optimizer):
+def train_loop(dataloader, model, device, loss_fn, optimizer):
     size = len(dataloader.dataset)
     model.train()
     for batch, (text, audio, text_len) in enumerate(dataloader):
-        text = text.cuda()
-        audio = audio.cuda()
-        text_len = text_len.cuda()
+        text, audio, text_len = text.to(device), audio.to(device), text_len.to(device)
         logits, probs_len = model(audio)
         log_probs = nn.functional.log_softmax(logits, dim=-1)
         text = text.transpose(0, 1)
@@ -100,37 +98,36 @@ def train_loop(dataloader, model, loss_fn, optimizer):
         #print(decode_text(text))
         #print(audio.shape)
 
-def test_loop(dataloader, model, loss_fn, optimizer):
+def test_loop(dataloader, model, device, loss_fn, optimizer):
     size = len(dataloader.dataset)
     test_loss = 0
     model.eval()
     for batch, (text, audio, text_len) in enumerate(dataloader):
-        text = text.cuda()
-        audio = audio.cuda()
-        text_len = text_len.cuda()
-        logits, probs_len = model(audio)
+        text, audio, text_len = text.to(device), audio.to(device), text_len.to(device)
         logits, probs_len = model(audio)
         log_probs = nn.functional.log_softmax(logits, dim=-1)
         text = text.transpose(0, 1)
         #print(logits.shape, text.shape, audio_lengths.shape, text_lengths.shape)
         loss = loss_fn(log_probs, text, probs_len, text_len)
 
-        test_loss += loss.item()
+        test_loss += loss.item() * text.shape[0]
 
     test_loss /= size
     print(f"Avg loss: {test_loss:>8f} \n")
     return test_loss
 
-def train(args):
+def train(args, device):
+    from .encoder import decode_text, merge_repeated, vocab2
+    assert len(vocab2) == 35
+    vocab_size = len(vocab2)
 
     learning_rate = 0.001
-    model = AudioToChar(n_mfcc=40, hidden_dim=256, vocab_size=29)
+    model = AudioToChar(n_mfcc=40, hidden_dim=128, vocab_size=vocab_size).to(device)
     loss_fn = nn.CTCLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    loss_fn = loss_fn.cuda()
-    model = model.cuda()
+    loss_fn = loss_fn.to(device)
 
-    CKPT_PATH = './model/ctc.pth'
+    CKPT_PATH = './model/ctc-v3.pth'
 
     ds = TextAudioDataset(
         text_file=f'data/{args.dataset}_text.npz',
@@ -141,12 +138,9 @@ def train(args):
     test_dataloader = DataLoader(test_ds, batch_size=128, shuffle=False, num_workers=0, collate_fn=generate_batch)
 
     if os.path.exists(CKPT_PATH):
-        checkpoint = torch.load(CKPT_PATH)
-        model.load_state_dict(checkpoint)
-        epoch = 16
-        #model.load_state_dict(checkpoint['model_state_dict'])
-        #optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        #epoch = checkpoint['epoch']
+        model.load_state_dict(checkpoint['model'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        epoch = checkpoint['epoch']
         #loss = checkpoint['loss']
     else:
         epoch = 0
@@ -154,8 +148,8 @@ def train(args):
     epochs = 100
     for t in range(epoch, epochs):
         print(f"Epoch {t+1}\n-------------------------------")
-        train_loop(train_dataloader, model, loss_fn, optimizer)
-        test_loss = test_loop(test_dataloader, model, loss_fn, optimizer)
+        train_loop(train_dataloader, model, device, loss_fn, optimizer)
+        test_loss = test_loop(test_dataloader, model, device, loss_fn, optimizer)
         torch.save({
             'epoch': epoch + 1,
             'model': model.state_dict(),
@@ -163,12 +157,12 @@ def train(args):
             'loss': test_loss,
             }, CKPT_PATH)
 
-def evaluate(args):
-    from .encoder import decode_text, merge_repeated
+def evaluate(args, device):
+    from .encoder import decode_text, merge_repeated, vocab2
+    assert len(vocab2) == 29
+    vocab_size = len(vocab2)
 
-    vocab_size = 29
-
-    model = AudioToChar(n_mfcc=40, hidden_dim=256, vocab_size=vocab_size)
+    model = AudioToChar(n_mfcc=40, hidden_dim=128, vocab_size=vocab_size).to(device)
     model.eval()
     state = torch.load('./model/ctc_fft512.pth', map_location=torch.device('cpu'))
     model.load_state_dict(state)
@@ -195,12 +189,21 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--train', action='store_true', help='Split audio and encode with WORLD vocoder.')
     parser.add_argument('--eval', action='store_true', help='Split audio and encode with WORLD vocoder.')
+    parser.add_argument('--no-cuda', action='store_true', default=False,
+                        help='disables CUDA training')
+    parser.add_argument('--seed', type=int, default=1, metavar='S',
+                        help='random seed (default: 1)')
     parser.add_argument('--dataset', default='css10ja', help='Analyze F0 of sampled data.')
     args = parser.parse_args()
+    use_cuda = not args.no_cuda and torch.cuda.is_available()
 
+    torch.manual_seed(args.seed)
+    
+    device = torch.device("cuda" if use_cuda else "cpu")
+    
     if args.train:
-        train(args)
+        train(args, device)
     elif args.eval:
-        evaluate(args)
+        evaluate(args, device)
     else:
         raise ValueError('Unknown command')

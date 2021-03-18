@@ -8,6 +8,7 @@ import torch
 import torchaudio
 
 from .encoder import encode_text
+from .encoder import encode_text2
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -126,8 +127,6 @@ def split_audio(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_fft=51
 
 def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_fft=512):
 
-    args.dataset = 'css10ja'
-
     mfcc_transform = torchaudio.transforms.MFCC(
         sample_rate=expected_sample_rate,
         n_mfcc=n_mfcc,
@@ -135,7 +134,7 @@ def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n
 
     corpus = readcorpus_css10ja(os.path.join(CORPUSDATA_CSS10JA_PATH, 'transcript.txt'))
     with open_index_data_for_write(TEXT_PATH % (args.dataset,)) as textf:
-        with open_index_data_for_write(AUDIO_PATH % (args.dataset,)) as audiof:
+        if True:#with open_index_data_for_write(AUDIO_PATH % (args.dataset,)) as audiof:
             for id_, monophone in tqdm(corpus):
 
                 if not monophone:
@@ -147,16 +146,17 @@ def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n
                 except:
                     print(f'Skipping: {monophone}')
                     continue
+                encoded = encode_text2(monophone)
             
                 file = os.path.join(CORPUSDATA_CSS10JA_PATH, id_)
                 assert '..' not in file # Just make sure it is under the current directory.
-                y, sr = torchaudio.load(file)
-                assert y.shape[0] == 1
-                assert sr == expected_sample_rate
-                y = torch.mean(y, axis=0) # to mono
-                mfcc = mfcc_transform(y).T
+                #y, sr = torchaudio.load(file)
+                #assert y.shape[0] == 1
+                #assert sr == expected_sample_rate
+                #y = torch.mean(y, axis=0) # to mono
+                #mfcc = mfcc_transform(y).T
                 textf.write(encoded)
-                audiof.write(mfcc.numpy().astype(np.float32))
+                #audiof.write(mfcc.numpy().astype(np.float32))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
