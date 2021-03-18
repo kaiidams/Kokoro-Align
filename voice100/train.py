@@ -120,7 +120,7 @@ def test_loop(dataloader, model, loss_fn, optimizer):
 def train(args):
 
     learning_rate = 0.001
-    model = AudioToChar(n_mfcc=40, hidden_dim=128, vocab_size=29)
+    model = AudioToChar(n_mfcc=40, hidden_dim=256, vocab_size=29)
     loss_fn = nn.CTCLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     loss_fn = loss_fn.cuda()
@@ -147,7 +147,7 @@ def evaluate(args):
 
     vocab_size = 29
 
-    model = AudioToChar(n_mfcc=40, hidden_dim=128, vocab_size=vocab_size)
+    model = AudioToChar(n_mfcc=40, hidden_dim=256, vocab_size=vocab_size)
     model.eval()
     state = torch.load('./model/ctc_fft512.pth', map_location=torch.device('cpu'))
     model.load_state_dict(state)
