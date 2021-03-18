@@ -153,7 +153,7 @@ def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n
                 y, sr = torchaudio.load(file)
                 assert y.shape[0] == 1
                 assert sr == expected_sample_rate
-                y = np.mean(y, axis=0) # to mono
+                y = torch.mean(y, axis=0) # to mono
                 mfcc = mfcc_transform(y).T
                 textf.write(encoded)
                 audiof.write(mfcc.numpy().astype(np.float32))
