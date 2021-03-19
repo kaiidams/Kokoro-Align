@@ -156,6 +156,7 @@ def train(args, device):
         print(f"Epoch {t+1}\n-------------------------------")
         train_loop(train_dataloader, model, device, loss_fn, optimizer)
         test_loss = test_loop(test_dataloader, model, device, loss_fn, optimizer)
+        os.makedirs(os.path.dirname(ckpt_path))
         torch.save({
             'epoch': epoch + 1,
             'model': model.state_dict(),
