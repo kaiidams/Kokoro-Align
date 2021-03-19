@@ -57,7 +57,6 @@ class AudioToChar(nn.Module):
         self.dense = nn.Linear(hidden_dim * 2, vocab_size)
 
     def forward(self, audio):
-        audio = self.dropout(audio)
         lstm_out, _ = self.lstm(audio)
         lstm_out, lstm_out_len = pad_packed_sequence(lstm_out)
         return self.dense(lstm_out), lstm_out_len
