@@ -3,28 +3,26 @@
 import argparse
 import numpy as np
 from tqdm import tqdm
-from voice100.encoder import encode_text, decode_text, merge_repeated
+from voice100.encoder import encode_text2, decode_text2, merge_repeated2
+
+def get_path(paths, alignments, score):
+    s = []
+    #k = np.arange(alignments[-1].shape[0])
+    k = np.argmax(alignments[-1])
+    k = np.array([k], dtype=np.int32)
+    for path, alighment in zip(reversed(paths), reversed(alignments)):
+        s.append(alighment[k])
+        k = path[k]
+    s = np.array(list(reversed(s))).T # (beam_size, audio_seq_len)
+    si = np.argsort(score)[::-1]
+    return s, score[k] #s[si], score[si]
 
 def ctc_best_path(logits, labels, beam_size=8000, max_move=4):
-
-    def get_path(paths, alignments, score):
-        s = []
-        #k = np.arange(alignments[-1].shape[0])
-        k = np.argmax(alignments[-1])
-        k = np.array([k], dtype=np.int32)
-        for path, alighment in zip(reversed(paths), reversed(alignments)):
-            s.append(alighment[k])
-            k = path[k]
-        s = np.array(list(reversed(s))).T # (beam_size, audio_seq_len)
-        si = np.argsort(score)[::-1]
-        return s, score[k] #s[si], score[si]
 
     # Expand label with blanks
     tmp = labels
     labels = np.zeros(labels.shape[0] * 2 + 1, dtype=np.int32)
     labels[1::2] = tmp
-
-    #hist = np.zeros([logits.shape[0] // 10 + 1, labels.shape[0]], np.float32) - 1e9
 
     paths = [
         np.zeros([1], dtype=np.int32)
@@ -57,28 +55,11 @@ def ctc_best_path(logits, labels, beam_size=8000, max_move=4):
         next_path = np.choose(k, next_path)
         next_score = np.choose(k, next_score)
 
-        #print('b')
-        #print(path[:10])
-        #print(score[:10])
-        #print(score)
-        #print(next_path.shape)
         alignment, = np.nonzero(next_path >= 0)
         alignment = alignment.copy()
         paths.append(next_path[alignment].copy())
         score = next_score[alignment].copy()
         alignments.append(alignment)
-
-        if True:
-            if i % 1000 == 0:
-                best_path, escore = get_path(paths, alignments, score)
-                #k = np.argsort(score)[-1:]
-                print('\n----')
-                for p, s in zip(best_path, escore):
-                    from voice100.encoder import encode_text, decode_text2, merge_repeated
-                    t = decode_text2([labels[a] for a in p])
-                    print(f'step: {i:4d} {s:.5f} {t}')
-                    #print('alignment:', alignment.tolist())
-                    #print('score:', score.tolist())
 
     return get_path(paths, alignments, score)
 
@@ -118,6 +99,18 @@ def align(args):
         audio_indices = f['indices']
         #audio_data = f['data']
 
+    text_start = 0
+    origa = []
+    word_pos = np.zeros([best_path.shape[0]], dtype=np.int32)
+    with open(f'data/{args.dataset}_transcript.txt') as f:
+        for line in f:
+            parts = line.rstrip('\r\n').split('|')
+            orig, text = parts
+            origa.append((orig, text))
+            text_end = text_start + (len(text.split(' ')) if text else 0)
+            word_pos[text_start:text_end] = len(origa)
+            text_start = text_end
+
     with open(f'data/{args.dataset}_alignment.txt', 'wt') as f:
         for i in range(len(audio_indices)):
             audio_start = audio_indices[i - 1] if i > 0 else 0 
@@ -130,14 +123,20 @@ def align(args):
 
             s = labels[text_start:text_end]
             s = decode_text2(s)
-            f.write(f'{i+1}|{s}\n')
+
+            e = word_pos[text_start]
+            m = word_pos[text_end]
+            print(e, m)
+            o = origa[e:m]
+            o = ' '.join([x[0] for x in o])
+
+            f.write(f'{i+1}|{o}|{s}\n')
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--best_path', action='store_true', help='Compute normalization parameters.')
     parser.add_argument('--align', action='store_true', help='Compute normalization parameters.')
     parser.add_argument('--dataset', help='Dataset to process, css10ja, tsukuyomi_normal')
-    parser.add_argument('--model_dir', default='model/ctc-20210313')
 
     args = parser.parse_args()
 
@@ -145,6 +144,8 @@ def main():
         best_path(args)
     elif args.align:
         align(args)
+    else:
+        raise ValueError("Unknown command")
 
 if __name__ == '__main__':
     main()
