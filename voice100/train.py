@@ -53,10 +53,12 @@ class AudioToChar(nn.Module):
     def __init__(self, n_mfcc, hidden_dim, vocab_size):
         super(AudioToChar, self).__init__()
         self.hidden_dim = hidden_dim
-        self.lstm = nn.LSTM(n_mfcc, hidden_dim, num_layers=1, dropout=0.2, bidirectional=True)
+        self.dropout = nn.Dropout(p=0.5)
+        self.lstm = nn.LSTM(n_mfcc, hidden_dim, num_layers=1, dropout=0.0, bidirectional=True)
         self.dense = nn.Linear(hidden_dim * 2, vocab_size)
 
     def forward(self, audio):
+        audio = self.dropout(audio)
         lstm_out, _ = self.lstm(audio)
         lstm_out, lstm_out_len = pad_packed_sequence(lstm_out)
         return self.dense(lstm_out), lstm_out_len
