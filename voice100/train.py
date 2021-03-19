@@ -144,9 +144,10 @@ def train(args, device):
 
     ckpt_path = os.path.join(args.model_dir, 'ctc-last.pth')
     if os.path.exists(ckpt_path):
-        model.load_state_dict(checkpoint['model'])
-        optimizer.load_state_dict(checkpoint['optimizer'])
-        epoch = checkpoint['epoch']
+        state = torch.load(ckpt_path, map_location=device)
+        model.load_state_dict(state['model'])
+        optimizer.load_state_dict(state['optimizer'])
+        epoch = state['epoch']
         #loss = checkpoint['loss']
     else:
         epoch = 0
