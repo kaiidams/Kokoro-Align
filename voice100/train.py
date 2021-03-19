@@ -17,7 +17,7 @@ DEFAULT_PARAMS = dict(
     n_mfcc=40,
     hidden_dim=128,
     vocab_size=VOCAB2_SIZE
-}
+)
 
 class IndexArrayDataset(Dataset):
 
