@@ -11,7 +11,7 @@ from torch.nn.utils.rnn import pack_sequence, pad_sequence, pad_packed_sequence
 from .encoder import decode_text2, merge_repeated2, VOCAB2_SIZE
 
 BLANK_IDX = 0
-assert VOCAB2_SIZE == 45
+assert VOCAB2_SIZE == 43
 
 DEFAULT_PARAMS = dict(
     n_mfcc=40,
