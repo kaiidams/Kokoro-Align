@@ -5,10 +5,25 @@
 - Don't depend non-commercially licensed dataset
 - Small enough to run on normal PCs, Raspberry Pi or smartphones.
 
-# Sample synthesis
+## How to train CTC model
 
-- [Sample synthesis 1 (From eval datset)](docs/sample1.wav)
-- [Sample synthesis 2 (From JVS corpus)](docs/sample2.wav)
+### Preprocessing
+
+Get CSS10 Japanese corpus and extract the data under `./data`.
+`./data/japanese-single-speaker-speech-dataset/transcript.txt` should be
+the path to the transcript data.
+
+Run the preprocess,
+
+```
+$ python -m voice100.preprocess --dataset css10ja
+```
+
+This generates `data/css10ja_text.npz` and `data/css10ja_audio.npz`
+
+```
+$ python -m voice100.train --train --dataset css10ja --model-dir model/ctc
+```
 
 ## How to build dataset
 
@@ -49,32 +64,6 @@ python -m voice100.transcript
 
 ```
 $ python -m voice100.segmentation --align --dataset gongitsune  
-```
-
-## How to train
-
-### Preprocessing
-
-Get CSS10 Japanese corpus and extract the data under `./data`.
-`./data/japanese-single-speaker-speech-dataset/transcript.txt` should be
-the path to the transcript data.
-
-Run the preprocess,
-
-```
-$ python -m voice100.preprocess --dataset css10ja
-```
-
-This generates `data/css10ja_train.npz` and `data/css10ja_val.npz`
-
-### Training alighment model
-
-![Training CTC](./docs/train_ctc.png)
-
-The alignment model align text and audio of the dataset.
-
-```
-$ python -m voice100.train_ctc --mode train --dataset css10ja --model_dir model/ctc
 ```
 
 ### Estimate alighment
