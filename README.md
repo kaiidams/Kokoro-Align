@@ -38,7 +38,7 @@ $ python -m voice100.preprocess --dataset gongitsune
 ### Estimate phonemes
 
 ```
-$ python -m voice100.segmentation --phoneme --dataset gongitsune
+$ python -m voice100.train --phoneme --dataset gongitsune --model_dir
 ```
 
 ```

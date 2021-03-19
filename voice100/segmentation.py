@@ -5,64 +5,6 @@ import numpy as np
 from tqdm import tqdm
 from voice100.encoder import encode_text, decode_text, merge_repeated
 
-class Voice100Dataset:
-    def __init__(self, file):
-        with np.load(file) as f:
-            self.audio_indices = f['indices']
-            self.audio_data = f['data']
-
-    def __len__(self):
-        return len(self.audio_indices)
-
-    def __getitem__(self, index):
-        audio_start = self.audio_indices[index - 1] if index else 0
-        audio_end = self.audio_indices[index]
-        audio = self.audio_data[audio_start:audio_end, :]
-        return audio
-
-def ctc_best_path2(logits, labels):
-  # Expand label with blanks
-  import numpy as np
-  tmp = labels
-  labels = np.zeros(labels.shape[0] * 2 + 1, dtype=np.int32)
-  labels[1::2] = tmp
-
-  cands = [
-      (logits[0, labels[0]], [labels[0]])
-  ]
-  for i in tqdm(range(1, logits.shape[0])):
-    next_cands = []
-    for pos, (logit1, path1) in enumerate(cands):
-      logit1 = logit1 + logits[i, labels[pos]]
-      path1 = path1 + [labels[pos]]
-      next_cands.append((logit1, path1))
-
-    for pos, (logit2, path2) in enumerate(cands):
-      if pos + 1 < len(labels):
-        logit2 = logit2 + logits[i, labels[pos + 1]]
-        path2 = path2 + [labels[pos + 1]]
-        if pos + 1 == len(next_cands):
-          next_cands.append((logit2, path2))
-        else:
-          logit, _ = next_cands[pos + 1]
-          if logit2 > logit:
-            next_cands[pos + 1] = (logit2, path2)
-            
-    for pos, (logit3, path3) in enumerate(cands):
-      if pos + 2 < len(labels) and labels[pos + 1] == 0:
-        logit3 = logit3 + logits[i, labels[pos + 2]]
-        path3.append(labels[pos + 2])
-        if pos + 2 == len(next_cands):
-          next_cands.append((logit3, path3))
-        else:
-          logit, _ = next_cands[pos + 2]
-          if logit3 > logit:
-            next_cands[pos + 2] = (logit3, path3)
-            
-    cands = next_cands
-
-  return cands[-1], 0
-  
 def ctc_best_path(logits, labels, beam_size=8000, max_move=4):
 
     def get_path(paths, alignments, score):
@@ -78,24 +20,11 @@ def ctc_best_path(logits, labels, beam_size=8000, max_move=4):
         return s, score[k] #s[si], score[si]
 
     # Expand label with blanks
-    import numpy as np
     tmp = labels
     labels = np.zeros(labels.shape[0] * 2 + 1, dtype=np.int32)
     labels[1::2] = tmp
 
     #hist = np.zeros([logits.shape[0] // 10 + 1, labels.shape[0]], np.float32) - 1e9
-
-    if False:
-        print(decode_text(labels[:10]))
-
-        print(logits.shape)
-        for i in range(1000):
-            x = logits[i]
-            x = (np.exp(x) * 100)
-
-            print(x.astype(int))
-            #print(np.sum(x))
-        hoge
 
     paths = [
         np.zeros([1], dtype=np.int32)
@@ -128,9 +57,6 @@ def ctc_best_path(logits, labels, beam_size=8000, max_move=4):
         next_path = np.choose(k, next_path)
         next_score = np.choose(k, next_score)
 
-        #if i % 10 == 0:
-        #    hist[i // 10, :] = next_score
-
         #print('b')
         #print(path[:10])
         #print(score[:10])
@@ -154,66 +80,15 @@ def ctc_best_path(logits, labels, beam_size=8000, max_move=4):
                     #print('alignment:', alignment.tolist())
                     #print('score:', score.tolist())
 
-    #np.savez('data/a.npz', hist=hist)
-
     return get_path(paths, alignments, score)
-
-def phoneme(args):
-    import re
-    from glob import glob
-    import torch
-    sr = 22050
-    from .train import AudioToChar
-
-    model = AudioToChar(n_mfcc=40, hidden_dim=128, vocab_size=35)
-    state = torch.load('./model/ctc-v3.pth', map_location=torch.device('cpu'))
-    model.load_state_dict(state['model'])
-    model.eval()
-
-    from .train import IndexArrayDataset
-    ds = IndexArrayDataset('data/%s_audio.npz' % (args.dataset,))
-
-    from .preprocess import open_index_data_for_write
-    from torch.nn.utils.rnn import pack_sequence, pad_sequence, pad_packed_sequence
-    from voice100.encoder import decode_text2, merge_repeated2
-
-    with torch.no_grad():
-        with open_index_data_for_write('data/%s_phoneme.npz' % (args.dataset,)) as file:
-            with open('data/%s_phoneme.txt' % (args.dataset,), 'wt') as txtfile:
-                for i, audio in enumerate(tqdm(ds)):
-                    audio = pack_sequence([audio], enforce_sorted=False)
-                    logits, logits_len = model(audio)
-                    # logits: [audio_len, batch_size, vocab_size]
-                    preds = torch.argmax(logits, axis=-1).T
-                    preds_len = logits_len
-                    pred_decoded = decode_text2(preds[0, :preds_len[0]])
-                    pred_decoded = merge_repeated2(pred_decoded)
-                    #print(logits[:, 0, :].shape)
-                    #print(logits[:, 0, :].dtype)
-                    file.write(logits[:, 0, :])
-                    txtfile.write(f'{i+1}|{pred_decoded}\n')
 
 def best_path(args):
     import torch
     from torch import nn
-    with np.load('data/%s_phoneme.npz' % (args.dataset,)) as f:
+    with np.load(f'data/{args.dataset}_logits.npz') as f:
         logits = f['data']
-    
-    print(np.min(logits))
-    #with np.load('a.npz') as f:
-    #    logits = f['logits']
 
-    print(logits.shape)
-    if False:
-        k = logits[0].argmax(axis=-1)
-        print(k.shape)
-        k = decode_text(k)
-        #print(k)
-        #logits = np.concatenate([logits]*10, axis=1)
     logits = torch.from_numpy(logits)
-    #print(np.min(logits.numpy()))
-    print(logits.numpy())
-    #logits = logits * 10
     log_probs = nn.functional.log_softmax(logits, dim=-1)
     log_probs = log_probs.numpy()
 
@@ -259,7 +134,6 @@ def align(args):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--phoneme', action='store_true', help='Analyze F0 of sampled data.')
     parser.add_argument('--best_path', action='store_true', help='Compute normalization parameters.')
     parser.add_argument('--align', action='store_true', help='Compute normalization parameters.')
     parser.add_argument('--dataset', help='Dataset to process, css10ja, tsukuyomi_normal')
@@ -267,9 +141,7 @@ def main():
 
     args = parser.parse_args()
 
-    if args.phoneme:
-        phoneme(args)
-    elif args.best_path:
+    if args.best_path:
         best_path(args)
     elif args.align:
         align(args)

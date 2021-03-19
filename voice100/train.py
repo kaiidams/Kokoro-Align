@@ -76,6 +76,11 @@ def generate_batch(data_batch):
         audio_batch = pack_sequence(audio_batch, enforce_sorted=False)
         return text_batch, audio_batch, text_len
 
+def generate_batch_audio(data_batch):
+    audio_batch = data_batch
+    audio_batch = pack_sequence(audio_batch, enforce_sorted=False)
+    return audio_batch
+
 def train_loop(dataloader, model, device, loss_fn, optimizer):
     size = len(dataloader.dataset)
     model.train()
@@ -185,15 +190,50 @@ def evaluate(args, device):
             print(target_decoded)
             print(pred_decoded)
 
+def predict(args, device):
+    from .encoder import decode_text, merge_repeated, vocab2
+    assert len(vocab2) == 35
+    vocab_size = len(vocab2)
+
+    model = AudioToChar(n_mfcc=40, hidden_dim=128, vocab_size=vocab_size).to(device)
+    ckpt_path = os.path.join(args.model_dir, 'ctc-last.pth')
+    state = torch.load(ckpt_path, map_location=device)
+    model.load_state_dict(state['model'])
+
+    ds = IndexArrayDataset(f'data/{args.dataset}_audio.npz')
+    dataloader = DataLoader(ds, batch_size=128, shuffle=False, num_workers=0, collate_fn=generate_batch_audio)
+
+    from .preprocess import open_index_data_for_write
+    from voice100.encoder import decode_text2, merge_repeated2
+
+    model.eval()
+    with torch.no_grad():
+        with open_index_data_for_write(f'data/{args.dataset}_logits.npz') as file:
+            with open(f'data/{args.dataset}_greedy.txt', 'wt') as txtfile:
+                for i, audio in enumerate(tqdm(dataloader)):
+                    #audio = pack_sequence([audio], enforce_sorted=False)
+                    logits, logits_len = model(audio)
+                    # logits: [audio_len, batch_size, vocab_size]
+                    preds = torch.argmax(logits, axis=-1).T
+                    # preds: [batch_size, audio_len]
+                    preds_len = logits_len
+                    for i in range(preds.shape[0]):
+                        pred_decoded = decode_text2(preds[i, :preds_len[i]])
+                        pred_decoded = merge_repeated2(pred_decoded)
+                        file.write(logits[:preds_len[i], i, :])
+                        txtfile.write(f'{i+1}|{pred_decoded}\n')
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--train', action='store_true', help='Split audio and encode with WORLD vocoder.')
     parser.add_argument('--eval', action='store_true', help='Split audio and encode with WORLD vocoder.')
+    parser.add_argument('--predict', action='store_true', help='Split audio and encode with WORLD vocoder.')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
     parser.add_argument('--dataset', default='css10ja', help='Analyze F0 of sampled data.')
+    parser.add_argument('--model-dir', help='Directory to save checkpoints.')
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
 
@@ -205,5 +245,7 @@ if __name__ == '__main__':
         train(args, device)
     elif args.eval:
         evaluate(args, device)
+    elif args.predict:
+        predict(args, device)
     else:
         raise ValueError('Unknown command')
