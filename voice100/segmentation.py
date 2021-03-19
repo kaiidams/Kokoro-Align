@@ -63,7 +63,7 @@ def ctc_best_path2(logits, labels):
 
   return cands[-1], 0
   
-def ctc_best_path(logits, labels, beam_size=8000, max_move=3):
+def ctc_best_path(logits, labels, beam_size=8000, max_move=4):
 
     def get_path(paths, alignments, score):
         s = []
@@ -121,7 +121,7 @@ def ctc_best_path(logits, labels, beam_size=8000, max_move=3):
             v = next_label_pos[k]
             next_path[j, v] = k
             next_score[j, v] = score[k] + logits[i, labels[v]]
-            if j == 2:
+            if j > 0 and j % 2 == 0:
                 next_score[j, labels == 0] = -1e9
 
         k = np.argmax(next_score, axis=0)
@@ -148,7 +148,8 @@ def ctc_best_path(logits, labels, beam_size=8000, max_move=3):
                 #k = np.argsort(score)[-1:]
                 print('\n----')
                 for p, s in zip(best_path, escore):
-                    t = decode_text([labels[a] for a in p])
+                    from voice100.encoder import encode_text, decode_text2, merge_repeated
+                    t = decode_text2([labels[a] for a in p])
                     print(f'step: {i:4d} {s:.5f} {t}')
                     #print('alignment:', alignment.tolist())
                     #print('score:', score.tolist())
@@ -216,30 +217,23 @@ def best_path(args):
     log_probs = nn.functional.log_softmax(logits, dim=-1)
     log_probs = log_probs.numpy()
 
-    s = ''
-    with open('data/%s_transcript.txt' % (args.dataset)) as f:
-        for line in f:
-            parts = line.rstrip('\r\n').split('|')
-            s += parts[1]
-    s = s.replace(' ', '')
-
-    labels = encode_text(s)
+    from .transcript import read_transcript
+    from voice100.encoder import encode_text2, decode_text2, merge_repeated2
+    s = read_transcript(args.dataset)
+    labels = encode_text2(s)
     print(labels.shape)
+
     best_path, score = ctc_best_path(log_probs, labels)
     np.savez('data/%s_best_path.npz' % (args.dataset), best_path=best_path[0], score=score[0])
-    l = decode_text([0 if x % 2 == 0 else labels[x // 2] for x in best_path[0]])
+    l = decode_text2([0 if x % 2 == 0 else labels[x // 2] for x in best_path[0]])
     print(l)
 
 def align(args):
 
-    s = ''
-    with open('data/%s_transcript.txt' % (args.dataset)) as f:
-        for line in f:
-            parts = line.rstrip('\r\n').split('|')
-            s += parts[1]
-    s = s.replace(' ', '')
-
-    labels = encode_text(s)
+    from .transcript import read_transcript
+    from voice100.encoder import encode_text2, decode_text2, merge_repeated2
+    s = read_transcript(args.dataset)
+    labels = encode_text2(s)
 
     with np.load('data/%s_best_path.npz' % (args.dataset)) as f:
         best_path = f['best_path']
@@ -254,13 +248,13 @@ def align(args):
             audio_start = audio_indices[i - 1] if i > 0 else 0 
             audio_end = audio_indices[i]
             text_start = best_path[audio_start]
-            text_end = best_path[audio_end] if audio_end < len(best_path) else len(labels)
+            text_end = best_path[audio_end] if audio_end < len(best_path) else len(labels) * 2 + 1
             
             text_start = (text_start) // 2
             text_end = (text_end) // 2
 
             s = labels[text_start:text_end]
-            s = decode_text(s)
+            s = decode_text2(s)
             f.write(f'{i+1}|{s}\n')
 
 def main():

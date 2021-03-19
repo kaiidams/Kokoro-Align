@@ -353,7 +353,7 @@ def yomi2voca(text: str, ignore_error: bool) -> str:
             text = text[1:]
             res += x
             continue
-        res += text[0]
+        res += ' ' + text[0]
         text = text[1:]
     res = _COLON_RX.sub(':', res)
     if ignore_error:

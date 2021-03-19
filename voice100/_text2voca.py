@@ -2,6 +2,7 @@
 
 import MeCab
 from ._yomi2voca import yomi2voca
+from typing import List, Tuple
 
 _tagger = MeCab.Tagger()
 
@@ -13,22 +14,26 @@ def kata2hira(text):
     text = text.translate(_kata2hiratrans)
     return text.replace('ヴ', 'う゛')
 
-def getyomi(text):
+def getyomi(text) -> List[Tuple[str, str]]:
     parsed = _tagger.parse(text)
-    res = ''
+    res = []
     for line in parsed.split('\n'):
         if line == 'EOS':
             break
         parts = line.split('\t')
-        if parts[0] in ['。', '、', '？']:
-            res += parts[0]
+
+        word, yomi = parts[0], parts[1]
+        if yomi:
+            yomi = kata2hira(yomi)
+            res.append((word, yomi))
         else:
-            res += parts[1]
+            res.append((word, word))
     return res
 
-def text2voca(text: str, ignore_error: bool = False) -> str:
+def text2voca(text: str, ignore_error: bool = False) -> List[Tuple[str, str]]:
     """Convert text to phonemes.
     """
-    kata = getyomi(text)
-    hira = kata2hira(kata)
-    return yomi2voca(hira, ignore_error=ignore_error)
+    return [
+        (text_, yomi2voca(yomi_, ignore_error=ignore_error))
+        for text_, yomi_ in getyomi(text)
+    ]
