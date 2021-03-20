@@ -17,11 +17,14 @@ def get_path(prev_beam, label_pos, score):
     si = np.argsort(score)[::-1]
     return s, score[k] #s[si], score[si]
 
-def ctc_best_path(logits, labels, beam_size=2000, max_move=4):
+def ctc_best_path(log_probs, labels, beam_size=2000, max_move=4):
+
+    num_labels = labels.shape[0]
+    num_log_probs = log_probs.shape[0]
 
     # Expand label with blanks
     tmp = labels
-    labels = np.zeros(labels.shape[0] * 2 + 1, dtype=np.int32)
+    labels = np.zeros(num_labels * 2 + 1, dtype=np.int32)
     labels[1::2] = tmp
 
     prev_beam = [
@@ -32,22 +35,22 @@ def ctc_best_path(logits, labels, beam_size=2000, max_move=4):
     ]
     score = np.zeros([1], dtype=np.float32)
 
-    for i in tqdm(range(1, logits.shape[0])):
+    for i in tqdm(range(1, num_log_probs)):
 
-        label_pos_min = (labels.shape[0] - beam_size) * i / logits.shape[0] - 10
-        label_pos_max = (labels.shape[0] - beam_size) * i / logits.shape[0] + beam_size + 10
+        label_pos_min = (num_labels - beam_size) * i / num_log_probs - 10
+        label_pos_max = (num_labels - beam_size) * i / num_log_probs + beam_size + 10
 
-        next_path = np.zeros([max_move, labels.shape[0]], dtype=np.int32) - 1
-        next_score = np.zeros([max_move, labels.shape[0]], dtype=np.float32) - 1e9
+        next_path = np.zeros([max_move, num_labels], dtype=np.int32) - 1
+        next_score = np.zeros([max_move, num_labels], dtype=np.float32) - 1e9
 
         for j in range(max_move):
             next_label_pos = label_pos[-1] + j
-            k, = np.nonzero((next_label_pos < labels.shape[0]) &
+            k, = np.nonzero((next_label_pos < num_labels) &
                 (next_label_pos >= label_pos_min)
                 & (next_label_pos < label_pos_max))            
             v = next_label_pos[k]
             next_path[j, v] = k
-            next_score[j, v] = score[k] + logits[i, labels[v]]
+            next_score[j, v] = score[k] + log_probs[i, labels[v]]
             if j > 0 and j % 2 == 0:
                 next_score[j, labels == 0] = -1e9
 
