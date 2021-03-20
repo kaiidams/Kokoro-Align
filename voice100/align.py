@@ -7,12 +7,11 @@ from voice100.encoder import encode_text2, decode_text2, merge_repeated2
 
 def get_path(prev_beam, label_pos, score):
     s = []
-    #k = np.arange(label_pos[-1].shape[0])
-    k = np.argmax(label_pos[-1])
-    k = np.array([k], dtype=np.int32)
+    cur_beam = np.argmax(label_pos[-1])
+    cur_beam = np.array([cur_beam], dtype=np.int32)
     for path, alighment in zip(reversed(prev_beam), reversed(label_pos)):
-        s.append(alighment[k])
-        k = path[k]
+        s.append(alighment[cur_beam])
+        cur_beam = path[cur_beam]
     s = np.array(list(reversed(s))).T # (beam_size, audio_seq_len)
     si = np.argsort(score)[::-1]
     return s, score[k] #s[si], score[si]
@@ -26,6 +25,9 @@ def ctc_best_path(log_probs, labels, beam_size=2000, max_move=4):
 
     num_labels = labels.shape[0]
     num_log_probs = log_probs.shape[0]
+
+    print(f"Label length: {num_labels}")
+    print(f"Time length: {num_log_probs}")
 
     prev_beam = [
         np.zeros([1], dtype=np.int32)
@@ -85,7 +87,7 @@ def best_path(args):
     best_path, score = ctc_best_path(log_probs, labels)
     np.savez('data/%s_best_path.npz' % (args.dataset), best_path=best_path[0], score=score[0])
     l = decode_text2([0 if x % 2 == 0 else labels[x // 2] for x in best_path[0]])
-    print(l)
+    #print(l)
 
 def align(args):
 
