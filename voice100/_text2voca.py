@@ -24,10 +24,16 @@ def getyomi(text) -> List[Tuple[str, str]]:
 
         word, yomi = parts[0], parts[1]
         if yomi:
-            yomi = kata2hira(yomi)
+            if yomi in ['Ｋ']:
+                yomi = 'k e i'
+            else:
+                yomi = kata2hira(yomi)
             res.append((word, yomi))
         else:
-            res.append((word, word))
+            if word in ['、', '。', '？', '！']:
+                res.append((word, word))
+            else:
+                res.append((word, ''))
     return res
 
 def text2voca(text: str, ignore_error: bool = False) -> List[Tuple[str, str]]:
