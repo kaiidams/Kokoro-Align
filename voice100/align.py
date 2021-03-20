@@ -5,46 +5,46 @@ import numpy as np
 from tqdm import tqdm
 from voice100.encoder import encode_text2, decode_text2, merge_repeated2
 
-def get_path(paths, alignments, score):
+def get_path(prev_beam, label_pos, score):
     s = []
-    #k = np.arange(alignments[-1].shape[0])
-    k = np.argmax(alignments[-1])
+    #k = np.arange(label_pos[-1].shape[0])
+    k = np.argmax(label_pos[-1])
     k = np.array([k], dtype=np.int32)
-    for path, alighment in zip(reversed(paths), reversed(alignments)):
+    for path, alighment in zip(reversed(prev_beam), reversed(label_pos)):
         s.append(alighment[k])
         k = path[k]
     s = np.array(list(reversed(s))).T # (beam_size, audio_seq_len)
     si = np.argsort(score)[::-1]
     return s, score[k] #s[si], score[si]
 
-def ctc_best_path(logits, labels, beam_size=8000, max_move=4):
+def ctc_best_path(logits, labels, beam_size=2000, max_move=4):
 
     # Expand label with blanks
     tmp = labels
     labels = np.zeros(labels.shape[0] * 2 + 1, dtype=np.int32)
     labels[1::2] = tmp
 
-    paths = [
+    prev_beam = [
         np.zeros([1], dtype=np.int32)
     ]
-    alignments = [
+    label_pos = [
         np.zeros([1], dtype=np.int32)
     ]
     score = np.zeros([1], dtype=np.float32)
 
     for i in tqdm(range(1, logits.shape[0])):
 
-        alignment_min = (labels.shape[0] - beam_size) * i / logits.shape[0] - 10000
-        alignment_max = (labels.shape[0] - beam_size) * i / logits.shape[0] + beam_size + 10
+        label_pos_min = (labels.shape[0] - beam_size) * i / logits.shape[0] - 10
+        label_pos_max = (labels.shape[0] - beam_size) * i / logits.shape[0] + beam_size + 10
 
         next_path = np.zeros([max_move, labels.shape[0]], dtype=np.int32) - 1
         next_score = np.zeros([max_move, labels.shape[0]], dtype=np.float32) - 1e9
 
         for j in range(max_move):
-            next_label_pos = alignments[-1] + j
+            next_label_pos = label_pos[-1] + j
             k, = np.nonzero((next_label_pos < labels.shape[0]) &
-                (next_label_pos >= alignment_min)
-                & (next_label_pos < alignment_max))            
+                (next_label_pos >= label_pos_min)
+                & (next_label_pos < label_pos_max))            
             v = next_label_pos[k]
             next_path[j, v] = k
             next_score[j, v] = score[k] + logits[i, labels[v]]
@@ -57,11 +57,11 @@ def ctc_best_path(logits, labels, beam_size=8000, max_move=4):
 
         alignment, = np.nonzero(next_path >= 0)
         alignment = alignment.copy()
-        paths.append(next_path[alignment].copy())
+        prev_beam.append(next_path[alignment].copy())
         score = next_score[alignment].copy()
-        alignments.append(alignment)
+        label_pos.append(alignment)
 
-    return get_path(paths, alignments, score)
+    return get_path(prev_beam, label_pos, score)
 
 def best_path(args):
     import torch
@@ -102,14 +102,21 @@ def align(args):
     text_start = 0
     origa = []
     word_pos = np.zeros([best_path.shape[0]], dtype=np.int32)
+
+    orig_tokens = []
+    text_tokens = []
+    orig_pos = []
+    pos = 0
     with open(f'data/{args.dataset}_transcript.txt') as f:
         for line in f:
             parts = line.rstrip('\r\n').split('|')
             orig, text = parts
-            origa.append((orig, text))
-            text_end = text_start + (len(text.split(' ')) if text else 0)
-            word_pos[text_start:text_end] = len(origa)
-            text_start = text_end
+            orig_tokens.append(orig)
+            text_tokens.append(text)
+
+            text_len = len(encode_text2(text))
+            orig_pos.extend([pos] * text_len)
+            pos += 1
 
     with open(f'data/{args.dataset}_alignment.txt', 'wt') as f:
         for i in range(len(audio_indices)):
@@ -124,11 +131,10 @@ def align(args):
             s = labels[text_start:text_end]
             s = decode_text2(s)
 
-            e = word_pos[text_start]
-            m = word_pos[text_end]
-            print(e, m)
-            o = origa[e:m]
-            o = ' '.join([x[0] for x in o])
+            orig_start = orig_pos[text_start]
+            orig_end = orig_pos[text_end] if text_end < len(labels) else len(orig_tokens)
+            o = orig_tokens[orig_start:orig_end]
+            o = ' '.join(o)
 
             f.write(f'{i+1}|{o}|{s}\n')
 
