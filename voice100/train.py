@@ -200,15 +200,15 @@ def predict(args, device):
     state = torch.load(ckpt_path, map_location=device)
     model.load_state_dict(state['model'])
 
-    ds = IndexArrayDataset(f'data/{args.dataset}_audio.npz')
+    ds = IndexArrayDataset(args.audio)
     dataloader = DataLoader(ds, batch_size=args.batch_size, shuffle=False, num_workers=0, collate_fn=generate_batch_audio)
 
     from .preprocess import open_index_data_for_write
 
     model.eval()
     with torch.no_grad():
-        with open_index_data_for_write(f'data/{args.dataset}_logits.npz') as file:
-            with open(f'data/{args.dataset}_greedy.txt', 'wt') as txtfile:
+        with open_index_data_for_write(args.output) as file:
+            with open(args.text, 'wt') as txtfile:
                 audio_index = 0
                 for i, audio in enumerate(tqdm(dataloader)):
                     #audio = pack_sequence([audio], enforce_sorted=False)

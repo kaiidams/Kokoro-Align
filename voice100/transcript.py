@@ -13,21 +13,14 @@ def read_transcript(dataset):
     #s = s.replace(' ', '')
     return s
 
-def transcript(args):
+def write_transcript(input_file, output_file):
 
     RUBY_RX = re.compile(r'｜[^《]*《([^》]*)》')
 
-    with open(f'data/{args.dataset}.txt') as f:
-        with open(f'data/{args.dataset}_transcript.txt', 'wt') as outf:
+    with open(input_file) as f:
+        with open(output_file, 'wt') as outf:
             for line in f:
                 line = line.strip()
                 line = RUBY_RX.sub(r'\1', line)
                 for text, voca in text2voca(line):
                     outf.write(f'{text}|{voca}\n')
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', help='Dataset name')
-    args = parser.parse_args()
-
-    transcript(args)

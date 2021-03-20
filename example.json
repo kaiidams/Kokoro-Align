@@ -11,6 +11,7 @@
         "name": "こころ (Kokoro)",
         "librivox_url": "https://librivox.org/kokoro-by-soseki-natsume/",
         "aozora_url": "http://www.aozora.gr.jp/cards/000148/files/773_14560.html",
+        "archive_url": "http://www.archive.org/download//kokoro_natsume_um_librivox/kokoro_natsume_um_librivox_64kb_mp3.zip",
         "totaltime": "08:46:41"
     },
     {
@@ -53,6 +54,7 @@
         "name": "ごん狐 (Gon gitsune)",
         "librivox_url": "https://librivox.org/gongitsune-by-nankichi-niimi/",
         "aozora_url": "http://www.aozora.gr.jp/cards/000121/files/628_14895.html",
+        "archive_url": "http://archive.org/download/gongitsune_um_librivox/gongitsune_um_librivox_64kb_mp3.zip",
         "totaltime": "0:15:42"
     }
 ]

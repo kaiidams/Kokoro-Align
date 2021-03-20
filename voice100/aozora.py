@@ -20,8 +20,40 @@ EPILOGUE = """章
 
 class AozoraParser:
     def __init__(self):
+        self.outfile_index = 0
+        self.outfile = None
         self.text = ''
         self.wrote_text = False
+
+    def read_input_file(self, file):
+        self.outfiles = []
+        with open(file) as f:
+            for line in f:
+                parts = line.rstrip('\r\n').split('|')
+                self.outfiles.append(parts[0])
+
+    def read_aozora_file(self, file_or_url):
+        print(f'Reading Aozora {file_or_url}')
+        if file_or_url.startswith('https://') or file_or_url.startswith('http://'):
+            import requests
+            with requests.get(file_or_url) as r:
+                t = r.content.decode('shift_jis') 
+                self.soup = BeautifulSoup(t, 'html.parser')
+        else:
+            with open(file_or_url, 'rt', encoding='shift_jis') as f:
+                self.soup = BeautifulSoup(f, 'html.parser')
+
+    def _close_current_file(self):
+        if self.outfile:
+            self.outfile.close()
+            self.outfile = None
+
+    def _open_next_file(self):
+        self._close_current_file()
+        file = self.outfiles[self.outfile_index]
+        print(f'Writing {file}')
+        self.outfile = open(file, 'wt')
+        self.outfile_index += 1
 
     def _process_soup(self, node):
 
@@ -56,6 +88,7 @@ class AozoraParser:
     def _write_prologue(self):
         if self.wrote_text:
             self.outfile.write(EPILOGUE)
+            self._open_next_file()
             self.outfile.write(PROLOGUE2)
 
     def _write_epilogue(self):
@@ -69,24 +102,12 @@ class AozoraParser:
             self.wrote_text = True
         self.text = ''
 
-    def __enter__(self):
-        
-        self.outfile = open("kokoro_%d.txt" % i, 'wt')
+    def process(self, aozora_file_or_url, inputfile):
+        self.read_input_file(inputfile)
+        self.read_aozora_file(aozora_file_or_url)
+        self._open_next_file()
 
-    def __exit__(self):
-        self.outfile.close()
-
-    def process(self, file_or_url, outfile):
-        if file_or_url.startswith('https://') or file_or_url.startswith('http://'):
-            import requests
-            with requests.get(file_or_url) as r:
-                t = r.content.decode('shift_jis') 
-                self.soup = BeautifulSoup(t, 'html.parser')
-        else:
-            with open(file_or_url, 'rt', encoding='shift_jis') as f:
-                self.soup = BeautifulSoup(f, 'html.parser')
-
-        with self:
+        try:
             node = self.soup.find(class_='metadata')
             if node:
                 self._process_soup(node)
@@ -97,13 +118,18 @@ class AozoraParser:
             if node:
                 self._process_soup(node)
             self._write_epilogue()
+        finally:
+            self._close_current_file()
+
+        if len(self.outfiles) != self.outfile_index:
+            raise ValueError("Number of files doesn't match")
 
 def main(args):
-    AozoraParser().process(args.infile, args.outfile)
+    AozoraParser().process(args.aozora, args.input)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('infile', help='HTML file to process.')
-    parser.add_argument('outfile', help='Output file.')
+    parser.add_argument('--aozora', help='HTML file to process.')
+    parser.add_argument('input', help='Output file.')
     args = parser.parse_args()
     main(args)

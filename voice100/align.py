@@ -94,20 +94,20 @@ def ctc_best_path(log_probs, labels, beam_size=1000, max_move=4):
 
         if i % 10000 == 0:
             determined_path.extend(flush_determined_path(beams))
-            print(len(determined_path))
+            #print(len(determined_path))
 
     beams.append((
         np.array([labels_len], dtype=np.int32),
         np.expand_dims(np.argmax(beams[-1][0]), axis=0)))
     determined_path.extend(flush_determined_path(beams))
-    print(len(determined_path))
+    #print(len(determined_path))
 
     return np.array(determined_path, dtype=np.int32)
 
 def best_path(args):
     import torch
     from torch import nn
-    with np.load(f'data/{args.dataset}_logits.npz') as f:
+    with np.load(args.input) as f:
         logits = f['data']
 
     logits = torch.from_numpy(logits)
