@@ -1,3 +1,5 @@
+# Copyright (C) 2021 Katsuya Iida. All rights reserved.
+
 import json
 import os
 import argparse
@@ -11,49 +13,46 @@ DATA_DIR = './data'
 def replace_ext(files, fromext, toext):
     return [re.sub(fromext + '$', toext, file) for file in files]
 
-def main(args):
-    with open('example.json') as f:
-        example = json.load(f)
+def process(args, params):
 
-    example = { x['id']: x for x in example }
+    ##################################################
+    # Check if audio files are available locally
+    ##################################################
 
-    os.makedirs('data', exist_ok=True)
+    archive_url = params['archive_url']
+    audio_dir = os.path.join(DATA_DIR, re.sub('.zip$', '', os.path.basename(archive_url)))
+    if not os.path.exists(audio_dir):
+        print(f"""Audio files are missing. Please download audio files from
+{archive_url} 
+and extract the archive file in `{audio_dir}'. This scripts
+read audio files from `{audio_dir}/*.mp3'.""")
+        sys.exit(1)
+    else:
+        audio_files = sorted(glob(os.path.join(audio_dir, '*.mp3')))
 
-    params = example[args.dataset]
-    
+    ##################################################
     # Get text data from Aozora
+    ##################################################
+
     aozora_url = params['aozora_url']
-    aozora_file = os.path.join(DATA_DIR, os.path.basename(aozora_url))
+    aozora_file = os.path.join(audio_dir, os.path.basename(aozora_url))
+    if glob(os.path.join(aozora_file)):
+        print(f"Skip downloading Aozora HTML from `{aozora_url}'.")
     if not os.path.exists(aozora_file):
+        print(f"Downloading Aozora HTML from `{aozora_url}'.")
         urllib.request.urlretrieve(aozora_url, aozora_file)
 
-    audio_dir = os.path.join(DATA_DIR, re.sub('.zip$', '', os.path.basename(params['archive_url'])))
-    if not os.path.exists(audio_dir):
-        print(f"Download audio files from {params['archive_url']}")
-        sys.exit(1)
+    ##################################################
+    # Convert Aozora HTML to text
+    ##################################################
 
-    audio_files = sorted(glob(os.path.join(audio_dir, '*.mp3')))
-
-    process_file = os.path.join(DATA_DIR, f'{args.dataset}.txt')
     text_files = replace_ext(audio_files, '.mp3', '.plain.txt')
-    if os.path.exists(process_file):
-        print(f'Skip writing {process_file}')
-    else:
-        print(f'Writing {process_file}')
-        audio_files = sorted(glob(os.path.join(audio_dir, '*.mp3')))
-        with open(process_file, 'wt') as f:
-            for x, y in zip(text_files, audio_files):
-                f.write(f'{x}|{y}\n')
-
-    if glob(os.path.join(audio_dir, '*.plain.txt')):
+    if all(os.path.exists(file) for file in text_files):
         print(f'Skip converting Aozora HTML to text files')
     else:
         print(f'Converting Aozora HTML to text files')
-        import voice100.aozora
-        cargs = argparse.Namespace()
-        cargs.input = process_file
-        cargs.aozora = aozora_file
-        voice100.aozora.main(cargs)
+        from voice100.aozora import convert_aozora
+        convert_aozora(aozora_file, text_files)
 
     voca_files = replace_ext(audio_files, '.mp3', '.voca.txt')
     for text_file, voca_file in zip(text_files, voca_files):
@@ -115,11 +114,27 @@ def main(args):
 
     print('Done!')
 
+def main(args):
+    with open('example.json') as f:
+        example = json.load(f)
+
+    if args.list:
+        print("""List of supported dataset name:
+
+    ID                                 Name""")
+        for x in example:
+            print(f"    {x['id']:35s}{x['name']:10s}")
+    else:
+        example = { x['id']: x for x in example }
+        os.makedirs('data', exist_ok=True)
+        params = example[args.dataset]
+        process(args, params)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
+    parser.add_argument('--list', action='store_true', help='List supported dataset ID.')
     parser.add_argument('--dataset', default='gongitsune-by-nankichi-niimi', 
         help='Dataset ID to process')
     parser.add_argument('--model-dir', 

@@ -20,19 +20,13 @@ EPILOGUE = """章
 
 class AozoraParser:
     def __init__(self):
+        self.outfiles = []
         self.outfile_index = 0
         self.outfile = None
         self.text = ''
         self.wrote_text = False
 
-    def read_input_file(self, file):
-        self.outfiles = []
-        with open(file) as f:
-            for line in f:
-                parts = line.rstrip('\r\n').split('|')
-                self.outfiles.append(parts[0])
-
-    def read_aozora_file(self, file_or_url):
+    def _read_aozora_file(self, file_or_url):
         print(f'Reading Aozora {file_or_url}')
         if file_or_url.startswith('https://') or file_or_url.startswith('http://'):
             import requests
@@ -102,9 +96,9 @@ class AozoraParser:
             self.wrote_text = True
         self.text = ''
 
-    def process(self, aozora_file_or_url, inputfile):
-        self.read_input_file(inputfile)
-        self.read_aozora_file(aozora_file_or_url)
+    def process(self, aozora_file_or_url, outfiles):
+        self.outfiles = outfiles
+        self._read_aozora_file(aozora_file_or_url)
         self._open_next_file()
 
         try:
@@ -124,12 +118,5 @@ class AozoraParser:
         if len(self.outfiles) != self.outfile_index:
             raise ValueError("Number of files doesn't match")
 
-def main(args):
-    AozoraParser().process(args.aozora, args.input)
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--aozora', help='HTML file to process.')
-    parser.add_argument('input', help='Output file.')
-    args = parser.parse_args()
-    main(args)
+def convert_aozora(aozora_file, text_files):
+    AozoraParser().process(aozora_file, text_files)
