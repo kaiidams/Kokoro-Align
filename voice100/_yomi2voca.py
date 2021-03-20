@@ -359,6 +359,6 @@ def yomi2voca(text: str, ignore_error: bool) -> str:
     if ignore_error:
         res = _REJECT_RX.sub('', res)
     else:
-        if _REJECT_RX.match(res):
+        if _REJECT_RX.search(res):
             raise ValueError('Invalid characters in yomi.')
     return res[1:]
