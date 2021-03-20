@@ -58,11 +58,11 @@ def ctc_best_path(log_probs, labels, beam_size=1000, max_move=4):
 
     for i in tqdm(range(0, log_probs_len)):
 
-        next_beam = np.zeros([max_move, labels_len], dtype=np.int32) - 1
-        next_score = np.zeros([max_move, labels_len], dtype=np.float32) - np.inf
-
-        next_label_pos_min = max(0, labels_len * i / log_probs_len - beam_size // 2)
+        next_label_pos_min = max(0, labels_len * i // log_probs_len - beam_size // 2)
         next_label_pos_max = min(next_label_pos_min + beam_size, labels_len)
+
+        next_beam = np.zeros([max_move, next_label_pos_max - next_label_pos_min], dtype=np.int32) - 1
+        next_score = np.zeros([max_move, next_label_pos_max - next_label_pos_min], dtype=np.float32) - np.inf
 
         for j in range(max_move):
             next_label_pos = label_pos + j
@@ -70,12 +70,12 @@ def ctc_best_path(log_probs, labels, beam_size=1000, max_move=4):
                 (next_label_pos >= next_label_pos_min)
                 & (next_label_pos < next_label_pos_max))            
             v = next_label_pos[k]
-            next_beam[j, v] = k
-            next_score[j, v] = score[k] + log_probs[i, labels[v]]
+            next_beam[j, v - next_label_pos_min] = k
+            next_score[j, v - next_label_pos_min] = score[k] + log_probs[i, labels[v]]
 
             # Don't move from one blank to another blank.
             if j > 0 and j % 2 == 0:
-                next_score[j, labels == 0] = -np.inf
+                next_score[j, labels[next_label_pos_min:next_label_pos_max] == 0] = -np.inf
 
         k = np.argmax(next_score, axis=0)
         next_beam = np.choose(k, next_beam)
@@ -84,15 +84,15 @@ def ctc_best_path(log_probs, labels, beam_size=1000, max_move=4):
         label_pos, = np.nonzero(next_beam >= 0)
         label_pos = label_pos.copy()
         score = next_score[label_pos].copy()
+        beam = next_beam[label_pos].copy()
+        label_pos += next_label_pos_min
 
         beams.append((
             label_pos,
-            next_beam[label_pos].copy()
+            beam
             ))
 
-        #if i % 10 == 0:
-        #    hist[i // 10, :] = next_score
-        if i % 1000 == 0:
+        if i % 10000 == 0:
             determined_path.extend(flush_determined_path(beams))
             print(len(determined_path))
 
