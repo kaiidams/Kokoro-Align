@@ -113,3 +113,22 @@ $ python -m voice100.align --best_path --dataset gongitsune
 ```
 $ python -m voice100.align --align --dataset gongitsune  
 ```
+
+### Dataset
+
+- [明暗 (Meian)](https://librivox.org/meian-by-soseki-natsume/) 16:39:29 
+    [Online text](http://www.aozora.gr.jp/cards/000148/files/782_14969.html)
+- [こころ (Kokoro)](https://librivox.org/kokoro-by-soseki-natsume/) 08:46:41
+    [Online text](http://www.aozora.gr.jp/cards/000148/files/773_14560.html)
+- [雁 (Gan)](https://librivox.org/gan-by-ogai-mori/) 03:41:31
+    [Online text](http://www.aozora.gr.jp/cards/000129/files/45224_19919.html)
+- [草枕 (Kusamakura)](https://librivox.org/kusamakura-by-soseki-natsume/) 04:27:35
+    [Online text](http://www.aozora.gr.jp/cards/000148/files/776_14941.html)
+- [田舎教師 (Inaka Kyoshi)](https://librivox.org/inakakyoshi-by-katai-tayama/) 08:13:26
+    [Online text](http://www.aozora.gr.jp/cards/000214/files/1668_26031.html)
+- [坊っちゃん (Botchan)](https://librivox.org/botchan-by-soseki-natsume-2/) 04:26:27
+    [Online text](http://www.aozora.gr.jp/cards/000148/files/752_14964.html)
+- [野分 (Nowaki)](https://librivox.org/nowaki-by-soseki-natsume/) 4:40:49
+    [Online text](http://www.aozora.gr.jp/cards/000148/files/791_14959.html)
+- [ごん狐 (Gon gitsune)](https://librivox.org/gongitsune-by-nankichi-niimi/) 0:15:42
+    [Online text](https://librivox.org/gongitsune-by-nankichi-niimi/)

@@ -201,7 +201,7 @@ def predict(args, device):
     model.load_state_dict(state['model'])
 
     ds = IndexArrayDataset(f'data/{args.dataset}_audio.npz')
-    dataloader = DataLoader(ds, batch_size=128, shuffle=False, num_workers=0, collate_fn=generate_batch_audio)
+    dataloader = DataLoader(ds, batch_size=args.batch_size, shuffle=False, num_workers=0, collate_fn=generate_batch_audio)
 
     from .preprocess import open_index_data_for_write
 
@@ -209,6 +209,7 @@ def predict(args, device):
     with torch.no_grad():
         with open_index_data_for_write(f'data/{args.dataset}_logits.npz') as file:
             with open(f'data/{args.dataset}_greedy.txt', 'wt') as txtfile:
+                audio_index = 0
                 for i, audio in enumerate(tqdm(dataloader)):
                     #audio = pack_sequence([audio], enforce_sorted=False)
                     logits, logits_len = model(audio)
@@ -216,11 +217,13 @@ def predict(args, device):
                     preds = torch.argmax(logits, axis=-1).T
                     # preds: [batch_size, audio_len]
                     preds_len = logits_len
-                    for i in range(preds.shape[0]):
-                        pred_decoded = decode_text2(preds[i, :preds_len[i]])
+                    for j in range(preds.shape[0]):
+                        pred_decoded = decode_text2(preds[j, :preds_len[j]])
                         pred_decoded = merge_repeated2(pred_decoded)
-                        file.write(logits[:preds_len[i], i, :])
-                        txtfile.write(f'{i+1}|{pred_decoded}\n')
+                        x = logits[:preds_len[j], j, :].numpy().astype(np.float32)
+                        file.write(x)
+                        txtfile.write(f'{audio_index+1}|{pred_decoded}\n')
+                        audio_index += 1
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -233,6 +236,7 @@ if __name__ == '__main__':
                         help='random seed (default: 1)')
     parser.add_argument('--dataset', default='css10ja', help='Analyze F0 of sampled data.')
     parser.add_argument('--model-dir', help='Directory to save checkpoints.')
+    parser.add_argument('--batch-size', type=int, default=128, help='Batch size')
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
 
