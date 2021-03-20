@@ -29,50 +29,32 @@ def ctc_best_path(log_probs, labels, beam_size=2000, max_move=4):
     print(f"Label length: {num_labels}")
     print(f"Time length: {num_log_probs}")
 
-    prev_beam = [
-        np.zeros([1], dtype=np.int32)
+    beams = [
+        (-1, None) # (label_pos, prev_beam)
     ]
-    label_pos = [
-        np.zeros([1], dtype=np.int32)
-    ]
-    score = np.zeros([1], dtype=np.float32)
+    scores = np.zeros([num_labels], dtype=np.float32) - np.inf
 
-    hist = np.zeros([(num_log_probs + 9) // 10, num_labels], np.float32)
-
-    for i in tqdm(range(1, num_log_probs)):
+    for i in tqdm(range(num_log_probs)):
 
         label_pos_min = num_labels * i / num_log_probs - beam_size // 2
         label_pos_max = label_pos_min + beam_size
 
-        next_path = np.zeros([max_move, num_labels], dtype=np.int32) - 1
-        next_score = np.zeros([max_move, num_labels], dtype=np.float32) - 1e9
-
-        for j in range(max_move):
-            next_label_pos = label_pos[-1] + j
-            k, = np.nonzero((next_label_pos < num_labels) &
-                (next_label_pos >= label_pos_min)
-                & (next_label_pos < label_pos_max))            
-            v = next_label_pos[k]
-            next_path[j, v] = k
-            next_score[j, v] = score[k] + log_probs[i, labels[v]]
-            if j > 0 and j % 2 == 0:
-                next_score[j, labels == 0] = -1e9
-
-        k = np.argmax(next_score, axis=0)
-        next_path = np.choose(k, next_path)
-        next_score = np.choose(k, next_score)
-
-        if i % 10 == 0:
-            hist[i // 10, :] = next_score
-
-        alignment, = np.nonzero(next_path >= 0)
-        alignment = alignment.copy()
-        prev_beam.append(next_path[alignment].copy())
-        score = next_score[alignment].copy()
-        label_pos.append(alignment)
-
-    np.savez('hist.npz', hist=hist)
-
+        cand = dict()
+        for prev_beam in beams:
+            prev_label_pos, _ = prev_beam
+            for j in range(max_move):
+                label_pos = prev_label_pos + j
+                best_label_pos = -1
+                best_score = -np.inf
+                if label_pos_min <= label_pos < label_pos_max and label_pos < num_labels:
+                    score = scores[prev_label_pos] + log_probs[i, labels[label_pos]]
+                    if cand.get(label_pos, (None, -np.inf))[1] <= score:
+                        cand[label_pos] = (prev_beam, score)
+        beams = [
+            (label_pos, prev_beam)
+            for label_pos, (prev_beam, score) in cand.items()
+        ]
+    
     return get_path(prev_beam, label_pos, score)
 
 def best_path(args):
