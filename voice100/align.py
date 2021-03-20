@@ -19,13 +19,13 @@ def get_path(prev_beam, label_pos, score):
 
 def ctc_best_path(log_probs, labels, beam_size=2000, max_move=4):
 
-    num_labels = labels.shape[0]
-    num_log_probs = log_probs.shape[0]
-
     # Expand label with blanks
     tmp = labels
-    labels = np.zeros(num_labels * 2 + 1, dtype=np.int32)
+    labels = np.zeros(labels.shape[0] * 2 + 1, dtype=np.int32)
     labels[1::2] = tmp
+
+    num_labels = labels.shape[0]
+    num_log_probs = log_probs.shape[0]
 
     prev_beam = [
         np.zeros([1], dtype=np.int32)
@@ -37,8 +37,8 @@ def ctc_best_path(log_probs, labels, beam_size=2000, max_move=4):
 
     for i in tqdm(range(1, num_log_probs)):
 
-        label_pos_min = (num_labels - beam_size) * i / num_log_probs - 10
-        label_pos_max = (num_labels - beam_size) * i / num_log_probs + beam_size + 10
+        label_pos_min = num_labels * i / num_log_probs - beam_size // 2
+        label_pos_max = label_pos_min + beam_size
 
         next_path = np.zeros([max_move, num_labels], dtype=np.int32) - 1
         next_score = np.zeros([max_move, num_labels], dtype=np.float32) - 1e9
