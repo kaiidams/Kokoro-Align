@@ -62,6 +62,8 @@ $ mkdir data
 $ python -m voice100.aozora http://www.aozora.gr.jp/cards/000121/files/628_14895.html data/gongitsune.txt
 ```
 
+python -m voice100.aozora https://www.aozora.gr.jp/cards/000148/files/773_14560.html data/kokoro.txt
+
 ```
 $ (cd data && curl -LO http://archive.org/download/gongitsune_um_librivox/gongitsune_um_librivox_64kb_mp3.zip)
 $ unzip data/gongitsune_um_librivox_64kb_mp3.zip -d data/gongitsune_um_librivox_64kb_mp3
@@ -80,6 +82,8 @@ the text as `data/gongitsune.txt`.
 ### Preprocessing
 
 This uses MeCab Unidic Lite to get phonemes and save the result in `data/gongitsune_transcript.txt`.
+
+
 
 ```
 $ python -m voice100.transcript --dataset gongitsune

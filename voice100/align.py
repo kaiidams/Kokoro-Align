@@ -5,75 +5,104 @@ import numpy as np
 from tqdm import tqdm
 from voice100.encoder import encode_text2, decode_text2, merge_repeated2
 
-def get_path(prev_beam, label_pos, score):
+def get_path(beams, score):
     s = []
-    cur_beam = np.argmax(label_pos[-1])
+    cur_beam = np.argmax(beams[-1][0])
     cur_beam = np.array([cur_beam], dtype=np.int32)
-    for path, alighment in zip(reversed(prev_beam), reversed(label_pos)):
-        s.append(alighment[cur_beam])
-        cur_beam = path[cur_beam]
+    for label_pos, prev_beam in reversed(beams):
+        s.append(label_pos[cur_beam])
+        cur_beam = prev_beam[cur_beam]
     s = np.array(list(reversed(s))).T # (beam_size, audio_seq_len)
     si = np.argsort(score)[::-1]
     return s, score[cur_beam] #s[si], score[si]
 
-def ctc_best_path(log_probs, labels, beam_size=2000, max_move=4):
+def flush_determined_path(beams):
+    cur_beam = np.arange(beams[-1][1].shape[0])
+    i = len(beams) - 1
+    while i >= 0:
+        label_pos, prev_beam = beams[i]
+        cur_beam = np.unique(prev_beam[cur_beam])
+        i -= 1
+        if (len(cur_beam) == 1):
+            cur_beam = cur_beam[0]
+            unique_end = i
+            s = []
+            while i >= 0:
+                label_pos, prev_beam = beams[i]
+                s.append(label_pos[cur_beam].item())
+                cur_beam = prev_beam[cur_beam]
+                i -= 1
+            beams[:] = beams[unique_end + 1:]
+            return list(reversed(s))
+
+    return []
+
+def ctc_best_path(log_probs, labels, beam_size=1000, max_move=4):
 
     # Expand label with blanks
     tmp = labels
     labels = np.zeros(labels.shape[0] * 2 + 1, dtype=np.int32)
     labels[1::2] = tmp
 
-    num_labels = labels.shape[0]
-    num_log_probs = log_probs.shape[0]
+    labels_len = labels.shape[0]
+    log_probs_len = log_probs.shape[0]
 
-    print(f"Label length: {num_labels}")
-    print(f"Time length: {num_log_probs}")
+    print(f"Label length: {labels_len}")
+    print(f"Time length: {log_probs_len}")
 
-    prev_beam = [
-        np.zeros([1], dtype=np.int32)
-    ]
-    label_pos = [
-        np.zeros([1], dtype=np.int32)
-    ]
+    beams = []
+    label_pos = np.zeros([1], dtype=np.int32)
     score = np.zeros([1], dtype=np.float32)
 
-    hist = np.zeros([(num_log_probs + 9) // 10, num_labels], np.float32)
+    determined_path = []
 
-    for i in tqdm(range(1, num_log_probs)):
+    for i in tqdm(range(0, log_probs_len)):
 
-        label_pos_min = num_labels * i / num_log_probs - beam_size // 2
-        label_pos_max = label_pos_min + beam_size
+        next_beam = np.zeros([max_move, labels_len], dtype=np.int32) - 1
+        next_score = np.zeros([max_move, labels_len], dtype=np.float32) - np.inf
 
-        next_path = np.zeros([max_move, num_labels], dtype=np.int32) - 1
-        next_score = np.zeros([max_move, num_labels], dtype=np.float32) - 1e9
+        next_label_pos_min = max(0, labels_len * i / log_probs_len - beam_size // 2)
+        next_label_pos_max = min(next_label_pos_min + beam_size, labels_len)
 
         for j in range(max_move):
-            next_label_pos = label_pos[-1] + j
-            k, = np.nonzero((next_label_pos < num_labels) &
-                (next_label_pos >= label_pos_min)
-                & (next_label_pos < label_pos_max))            
+            next_label_pos = label_pos + j
+            k, = np.nonzero(
+                (next_label_pos >= next_label_pos_min)
+                & (next_label_pos < next_label_pos_max))            
             v = next_label_pos[k]
-            next_path[j, v] = k
+            next_beam[j, v] = k
             next_score[j, v] = score[k] + log_probs[i, labels[v]]
+
+            # Don't move from one blank to another blank.
             if j > 0 and j % 2 == 0:
-                next_score[j, labels == 0] = -1e9
+                next_score[j, labels == 0] = -np.inf
 
         k = np.argmax(next_score, axis=0)
-        next_path = np.choose(k, next_path)
+        next_beam = np.choose(k, next_beam)
         next_score = np.choose(k, next_score)
 
-        if i % 10 == 0:
-            hist[i // 10, :] = next_score
+        label_pos, = np.nonzero(next_beam >= 0)
+        label_pos = label_pos.copy()
+        score = next_score[label_pos].copy()
 
-        alignment, = np.nonzero(next_path >= 0)
-        alignment = alignment.copy()
-        prev_beam.append(next_path[alignment].copy())
-        score = next_score[alignment].copy()
-        label_pos.append(alignment)
+        beams.append((
+            label_pos,
+            next_beam[label_pos].copy()
+            ))
 
-    np.savez('hist.npz', hist=hist)
+        #if i % 10 == 0:
+        #    hist[i // 10, :] = next_score
+        if i % 1000 == 0:
+            determined_path.extend(flush_determined_path(beams))
+            print(len(determined_path))
 
-    return get_path(prev_beam, label_pos, score)
+    beams.append((
+        np.array([labels_len], dtype=np.int32),
+        np.expand_dims(np.argmax(beams[-1][0]), axis=0)))
+    determined_path.extend(flush_determined_path(beams))
+    print(len(determined_path))
+
+    return np.array(determined_path, dtype=np.int32)
 
 def best_path(args):
     import torch
@@ -91,10 +120,10 @@ def best_path(args):
     labels = encode_text2(s)
     print(labels.shape)
 
-    best_path, score = ctc_best_path(log_probs, labels)
-    np.savez('data/%s_best_path.npz' % (args.dataset), best_path=best_path[0], score=score[0])
-    l = decode_text2([0 if x % 2 == 0 else labels[x // 2] for x in best_path[0]])
-    #print(l)
+    best_path = ctc_best_path(log_probs, labels)
+    np.savez('data/%s_best_path.npz' % (args.dataset), best_path=best_path)
+    l = decode_text2([0 if x % 2 == 0 else labels[x // 2] for x in best_path])
+    print(l)
 
 def align(args):
 
@@ -143,10 +172,13 @@ def align(args):
             s = labels[text_start:text_end]
             s = decode_text2(s)
 
-            orig_start = orig_pos[text_start]
-            orig_end = orig_pos[text_end] if text_end < len(labels) else len(orig_tokens)
-            o = orig_tokens[orig_start:orig_end]
-            o = ' '.join(o)
+            if text_start >= len(orig_pos):
+                o = ''
+            else:
+                orig_start = orig_pos[text_start]
+                orig_end = orig_pos[text_end] if text_end < len(labels) else len(orig_tokens)
+                o = orig_tokens[orig_start:orig_end]
+                o = ' '.join(o)
 
             f.write(f'{i+1}|{o}|{s}\n')
 
