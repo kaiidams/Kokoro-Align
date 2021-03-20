@@ -3,15 +3,44 @@
 import re
 import argparse
 from ._text2voca import text2voca
+from .encoder import encode_text2
 
-def read_transcript(dataset):
-    s = ''
-    with open('data/%s_transcript.txt' % (dataset,)) as f:
+class VocaAligner:
+    def __init__(self, input_file):
+        self.text_tokens = []
+        self.voca_tokens = []
+        self.token_pos = []
+
+        pos = 0
+        with open(input_file) as f:
+            for line in f:
+                parts = line.rstrip('\r\n').split('|')
+                text, voca = parts
+                self.text_tokens.append(text)
+                self.voca_tokens.append(voca)
+
+                voca_len = len(encode_text2(voca))
+                self.token_pos.extend([pos] * voca_len)
+                pos += 1
+
+    def __len__(self):
+        return len(self.token_pos)
+
+    def get_token(self, start, end):
+        token_start = self.token_pos[start] if start < len(self) else len(self.text_tokens)
+        token_end = self.token_pos[end] if end < len(self) else len(self.text_tokens)
+        text = ' '.join(self.text_tokens[token_start:token_end])
+        voca = ' '.join(self.voca_tokens[token_start:token_end])
+        return text, voca
+
+def read_transcript(input_file):
+    res = []
+    with open(input_file) as f:
         for line in f:
             parts = line.rstrip('\r\n').split('|')
-            s += ' ' + parts[1]
-    #s = s.replace(' ', '')
-    return s
+            res.append(parts[1])
+    res = ' '.join(res)
+    return encode_text2(res)
 
 def write_transcript(input_file, output_file):
 

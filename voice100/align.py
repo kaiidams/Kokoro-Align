@@ -2,6 +2,7 @@
 
 import argparse
 import numpy as np
+import os
 from tqdm import tqdm
 from voice100.encoder import encode_text2, decode_text2, merge_repeated2
 
@@ -104,10 +105,10 @@ def ctc_best_path(log_probs, labels, beam_size=1000, max_move=4):
 
     return np.array(determined_path, dtype=np.int32)
 
-def best_path(args):
+def best_path(input_file, voca_file, output_file):
     import torch
     from torch import nn
-    with np.load(args.input) as f:
+    with np.load(input_file) as f:
         logits = f['data']
 
     logits = torch.from_numpy(logits)
@@ -115,87 +116,41 @@ def best_path(args):
     log_probs = log_probs.numpy()
 
     from .transcript import read_transcript
-    from voice100.encoder import encode_text2, decode_text2, merge_repeated2
-    s = read_transcript(args.dataset)
-    labels = encode_text2(s)
-    print(labels.shape)
+    labels = read_transcript(voca_file)
 
     best_path = ctc_best_path(log_probs, labels)
-    np.savez('data/%s_best_path.npz' % (args.dataset), best_path=best_path)
-    l = decode_text2([0 if x % 2 == 0 else labels[x // 2] for x in best_path])
-    print(l)
+    np.savez(output_file, best_path=best_path)
 
-def align(args):
+def align(best_path_file, mfcc_file, voca_file, align_file):
 
-    from .transcript import read_transcript
-    from voice100.encoder import encode_text2, decode_text2, merge_repeated2
-    s = read_transcript(args.dataset)
-    labels = encode_text2(s)
+    from .transcript import VocaAligner
 
-    with np.load('data/%s_best_path.npz' % (args.dataset)) as f:
+    with np.load(best_path_file) as f:
         best_path = f['best_path']
+    best_path = best_path // 2
 
-    file = 'data/%s_audio.npz' % (args.dataset,)
-    with np.load(file) as f:
+    with np.load(mfcc_file) as f:
         audio_indices = f['indices']
-        #audio_data = f['data']
+
+    aligner = VocaAligner(voca_file)
 
     text_start = 0
     origa = []
     word_pos = np.zeros([best_path.shape[0]], dtype=np.int32)
 
-    orig_tokens = []
-    text_tokens = []
-    orig_pos = []
-    pos = 0
-    with open(f'data/{args.dataset}_transcript.txt') as f:
-        for line in f:
-            parts = line.rstrip('\r\n').split('|')
-            orig, text = parts
-            orig_tokens.append(orig)
-            text_tokens.append(text)
+    try:
+        with open(align_file, 'wt') as f:
+            for i in range(len(audio_indices)):
+                audio_start = audio_indices[i - 1] if i > 0 else 0 
+                audio_end = audio_indices[i]
+                text_start = best_path[audio_start]
+                text_end = best_path[audio_end] if audio_end < len(best_path) else len(aligner)
+                text_start = min(text_start, len(aligner))
+                text_end = min(text_end, len(aligner))
 
-            text_len = len(encode_text2(text))
-            orig_pos.extend([pos] * text_len)
-            pos += 1
+                text, voca = aligner.get_token(text_start, text_end)
 
-    with open(f'data/{args.dataset}_alignment.txt', 'wt') as f:
-        for i in range(len(audio_indices)):
-            audio_start = audio_indices[i - 1] if i > 0 else 0 
-            audio_end = audio_indices[i]
-            text_start = best_path[audio_start]
-            text_end = best_path[audio_end] if audio_end < len(best_path) else len(labels) * 2 + 1
-            
-            text_start = (text_start) // 2
-            text_end = (text_end) // 2
-
-            s = labels[text_start:text_end]
-            s = decode_text2(s)
-
-            if text_start >= len(orig_pos):
-                o = ''
-            else:
-                orig_start = orig_pos[text_start]
-                orig_end = orig_pos[text_end] if text_end < len(labels) else len(orig_tokens)
-                o = orig_tokens[orig_start:orig_end]
-                o = ' '.join(o)
-
-            f.write(f'{i+1}|{o}|{s}\n')
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--best_path', action='store_true', help='Compute normalization parameters.')
-    parser.add_argument('--align', action='store_true', help='Compute normalization parameters.')
-    parser.add_argument('--dataset', help='Dataset to process, css10ja, tsukuyomi_normal')
-
-    args = parser.parse_args()
-
-    if args.best_path:
-        best_path(args)
-    elif args.align:
-        align(args)
-    else:
-        raise ValueError("Unknown command")
-
-if __name__ == '__main__':
-    main()
+                f.write(f'{i+1}|{text}|{voca}\n')
+    except:
+        os.unlink(align_file)
+        raise

@@ -96,11 +96,22 @@ def main(args):
             predict(cargs, device)
 
     best_path_files = replace_ext(audio_files, '.mp3', '.best_path.npz')
-    for mfcc_file, logits_file, greed_file in zip(mfcc_files, logits_files, greed_files): 
-        if os.path.exists(logits_file):
-            print(f'Skip predicting best CTC path of {logits_file}')
+    for logits_file, voca_file, best_path_file in zip(logits_files, voca_files, best_path_files): 
+        if os.path.exists(best_path_file):
+            print(f'Skip writing {best_path_file}')
         else:
-            print(f'Predicting best CTC path of {logits_file}')
+            print(f'Writing {best_path_file}')
+            from voice100.align import best_path
+            best_path(logits_file, voca_file, best_path_file)
+
+    align_files = replace_ext(audio_files, '.mp3', '.align.txt')
+    for best_path_file, mfcc_file, voca_file, align_file in zip(best_path_files, mfcc_files, voca_files, align_files): 
+        if os.path.exists(align_file):
+            print(f'Skip writing {align_file}')
+        else:
+            print(f'Writing {align_file}')
+            from voice100.align import align
+            align(best_path_file, mfcc_file, voca_file, align_file)
 
     print('Done!')
 
