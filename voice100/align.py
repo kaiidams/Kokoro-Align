@@ -14,7 +14,7 @@ def get_path(prev_beam, label_pos, score):
         cur_beam = path[cur_beam]
     s = np.array(list(reversed(s))).T # (beam_size, audio_seq_len)
     si = np.argsort(score)[::-1]
-    return s, score[k] #s[si], score[si]
+    return s, score[cur_beam] #s[si], score[si]
 
 def ctc_best_path(log_probs, labels, beam_size=2000, max_move=4):
 
@@ -36,6 +36,8 @@ def ctc_best_path(log_probs, labels, beam_size=2000, max_move=4):
         np.zeros([1], dtype=np.int32)
     ]
     score = np.zeros([1], dtype=np.float32)
+
+    hist = np.zeros([(num_log_probs + 9) // 10, num_labels], np.float32)
 
     for i in tqdm(range(1, num_log_probs)):
 
@@ -60,11 +62,16 @@ def ctc_best_path(log_probs, labels, beam_size=2000, max_move=4):
         next_path = np.choose(k, next_path)
         next_score = np.choose(k, next_score)
 
+        if i % 10 == 0:
+            hist[i // 10, :] = next_score
+
         alignment, = np.nonzero(next_path >= 0)
         alignment = alignment.copy()
         prev_beam.append(next_path[alignment].copy())
         score = next_score[alignment].copy()
         label_pos.append(alignment)
+
+    np.savez('hist.npz', hist=hist)
 
     return get_path(prev_beam, label_pos, score)
 
