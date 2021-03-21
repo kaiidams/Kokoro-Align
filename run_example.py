@@ -10,6 +10,7 @@ from glob import glob
 
 DATA_DIR = './data'
 OUTPUT_DIR = './output'
+MODEL_URL = "https://github.com/kaiidams/voice100/releases/download/0.0.2/ctc-20210319.tar.gz"
 
 def replace_ext(files, fromext, toext):
     return [re.sub(fromext + '$', toext, file) for file in files]
@@ -215,6 +216,7 @@ def main(args):
             print(f"    {x['id']:35s}{x['totaltime']:10s}{x['name']:10s}")
     elif args.download:
         for x in example:
+            print(f"curl -LO {MODEL_URL}")
             print(f"curl -LO {x['aozora_url']}")
             print(f"curl -LO {x['archive_url']}")
     else:
