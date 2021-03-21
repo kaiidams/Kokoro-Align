@@ -49,8 +49,9 @@ def download_script(example):
     print()
     for x in example:
         archive_url = x['archive_url']
-        audio_dir = os.path.join(re.sub(r'\.zip$', '', os.path.basename(archive_url)))
-        print(f"unzip {archive_url} -d {audio_dir}")
+        archive_file = os.path.basename(archive_url)
+        audio_dir = os.path.join(re.sub(r'\.zip$', '', archive_file))
+        print(f"unzip {archive_file} -d {audio_dir}")
 
 def process(args, params):
 
