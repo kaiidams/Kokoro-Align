@@ -194,9 +194,14 @@ read audio files from `{audio_dir}/*.mp3'.""")
     # Write WAV files
     ##################################################
 
-    write_wav_files(audio_dir, source_file, OUTPUT_DIR)
+    wav_files = glob(os.path.join(OUTPUT_DIR, f'{args.dataset}-*.wav'))
+    if wav_files:
+        print(f"There are some WAV files `{wav_files[0]}'")
+        print(f"Skip writing WAV files")
+    else:
+        write_wav_files(audio_dir, source_file, OUTPUT_DIR)
 
-    print('Done!')
+    print('All done!')
 
 def main(args):
     with open('example.json') as f:
@@ -205,9 +210,9 @@ def main(args):
     if args.list:
         print("""List of supported dataset name:
 
-    ID                                 Name""")
+    ID                                 Time      Name      """)
         for x in example:
-            print(f"    {x['id']:35s}{x['name']:10s}")
+            print(f"    {x['id']:35s}{x['totaltime']:10s}{x['name']:10s}")
     else:
         example = { x['id']: x for x in example }
         os.makedirs('data', exist_ok=True)
