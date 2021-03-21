@@ -213,6 +213,10 @@ def main(args):
     ID                                 Time      Name      """)
         for x in example:
             print(f"    {x['id']:35s}{x['totaltime']:10s}{x['name']:10s}")
+    elif args.download:
+        for x in example:
+            print(f"curl -LO {x['aozora_url']}")
+            print(f"curl -LO {x['archive_url']}")
     else:
         example = { x['id']: x for x in example }
         os.makedirs('data', exist_ok=True)
@@ -224,6 +228,7 @@ if __name__ == '__main__':
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
     parser.add_argument('--list', action='store_true', help='List supported dataset ID.')
+    parser.add_argument('--download', action='store_true', help='Print download script.')
     parser.add_argument('--dataset', default='gongitsune-by-nankichi-niimi', 
         help='Dataset ID to process')
     parser.add_argument('--model-dir', 
