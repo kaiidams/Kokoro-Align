@@ -310,11 +310,15 @@ _CONVRULES = [
     'ぉ/ o',
 
 #その他特別なルール
-    'を/ o'
+    'を/ o',
+
+    '、/ ,',
+    '。/ .',
+    '？/ ?'
 ]
 
 _COLON_RX = re.compile(':+')
-_REJECT_RX = re.compile('[^ a-zA-Z:]')
+_REJECT_RX = re.compile('[^ a-zA-Z:,.?]')
 
 def _makerulemap():
     l = [tuple(x.split('/')) for x in _CONVRULES]
@@ -325,7 +329,7 @@ def _makerulemap():
 
 _rulemap1, _rulemap2, _rulemap3 = _makerulemap()
 
-def yomi2voca(text: str) -> str:
+def yomi2voca(text: str, ignore_error: bool) -> str:
     """Convert yomi text to phonemes.
     """
     text = text.strip()
@@ -349,8 +353,13 @@ def yomi2voca(text: str) -> str:
             text = text[1:]
             res += x
             continue
-        res += text[0]
+        res += ' ' + text[0]
+        text = text[1:]
     res = _COLON_RX.sub(':', res)
-    if _REJECT_RX.match(res):
-        raise ValueError('Invalid characters in yomi.')
+    if ignore_error:
+        res = _REJECT_RX.sub('', res)
+    else:
+        m = _REJECT_RX.search(res)
+        if m:
+            raise ValueError('Invalid characters in yomi "%s".' % m.group(0))
     return res[1:]

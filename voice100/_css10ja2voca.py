@@ -27,4 +27,22 @@ def css10ja2voca(css):
     t = t.replace('-', ':')
     t = t.replace('―', ':')
     t = t.replace("'", '')
+
+    # Split phonemes
+    t = ' '.join(t)
+    t = t.replace('b y', 'by')
+    t = t.replace('c h', 'ch')
+    t = t.replace('h y', 'hy')
+    t = t.replace('k y', 'ky')
+    t = t.replace('m y', 'my')
+    t = t.replace('p y', 'py')
+    t = t.replace('r y', 'ry')
+    t = t.replace('s h', 'sh')
+    t = t.replace('t s', 'ts')
+    t = t.replace(' :', ':')
+
+    t = t.replace('s y', 'sh')
+    t = t.replace('t y', 'ch')
+    t = t.replace('j y', 'j')
+
     return t
