@@ -10,6 +10,7 @@ from glob import glob
 
 DATA_DIR = './data'
 OUTPUT_DIR = './output'
+SAMPLE_DIR = './sample'
 MODEL_URL = "https://github.com/kaiidams/voice100/releases/download/0.0.2/ctc-20210319.tar.gz"
 
 def replace_ext(files, fromext, toext):
@@ -204,6 +205,25 @@ read audio files from `{audio_dir}/*.mp3'.""")
 
     print('All done!')
 
+def sample_data(k=100):
+    import random
+    import shutil
+    samples = []
+    transcript_files = glob(os.path.join(OUTPUT_DIR, '*.transcript.txt'))
+    for transcript_file in transcript_files:
+        with open(transcript_file, 'rt') as f:
+            for line in f:
+                samples.append(line)
+    sampled_lines = random.sample(samples, k=100)
+    os.makedirs(SAMPLE_DIR, exist_ok=False)
+    with open(os.path.join(SAMPLE_DIR, 'transcript.txt'), 'wt') as f:
+        for line in sampled_lines:
+            f.write(line)
+            id_, _, _, _ = line.rstrip('\r\n').split('|')
+            wav_src_file = os.path.join(OUTPUT_DIR, f'{id_}.wav')
+            wav_dst_file = os.path.join(SAMPLE_DIR, f'{id_}.wav')
+            shutil.copyfile(wav_src_file, wav_dst_file)
+
 def main(args):
     with open('example.json') as f:
         example = json.load(f)
@@ -219,6 +239,8 @@ def main(args):
             print(f"curl -LO {MODEL_URL}")
             print(f"curl -LO {x['aozora_url']}")
             print(f"curl -LO {x['archive_url']}")
+    elif args.sample:
+        sample_data()
     else:
         example = { x['id']: x for x in example }
         os.makedirs('data', exist_ok=True)
@@ -231,6 +253,7 @@ if __name__ == '__main__':
                         help='disables CUDA training')
     parser.add_argument('--list', action='store_true', help='List supported dataset ID.')
     parser.add_argument('--download', action='store_true', help='Print download script.')
+    parser.add_argument('--sample', action='store_true', help='Make a sample dataset.')
     parser.add_argument('--dataset', default='gongitsune-by-nankichi-niimi', 
         help='Dataset ID to process')
     parser.add_argument('--model-dir', 
