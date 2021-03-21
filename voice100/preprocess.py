@@ -155,7 +155,7 @@ def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n
 
     corpus = readcorpus_css10ja(os.path.join(CORPUSDATA_CSS10JA_PATH, 'transcript.txt'))
     with open_index_data_for_write(TEXT_PATH % (args.dataset,)) as textf:
-        if with open_index_data_for_write(AUDIO_PATH % (args.dataset,)) as audiof:
+        with open_index_data_for_write(AUDIO_PATH % (args.dataset,)) as audiof:
             for id_, monophone in tqdm(corpus):
 
                 if not monophone:

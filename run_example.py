@@ -80,7 +80,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
     ##################################################
 
     aozora_url = params['aozora_url']
-    aozora_file = os.path.join(audio_dir, os.path.basename(aozora_url))
+    aozora_file = os.path.join(DATA_DIR, os.path.basename(aozora_url))
     if glob(os.path.join(aozora_file)):
         print(f"Skip downloading Aozora HTML from `{aozora_url}'.")
     if not os.path.exists(aozora_file):
