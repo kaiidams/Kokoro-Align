@@ -14,7 +14,7 @@ SAMPLE_DIR = './sample'
 MODEL_URL = "https://github.com/kaiidams/voice100/releases/download/0.0.2/ctc-20210319.tar.gz"
 
 def replace_ext(files, fromext, toext):
-    return [re.sub(f'\\.{fromext}', f'.{toext}', file) for file in files]
+    return [re.sub(f'\\.{fromext}$', f'.{toext}', file) for file in files]
 
 def combine_files(transcript_file, source_file, align_files, audio_files, segment_files):
     os.makedirs(os.path.dirname(transcript_file), exist_ok=True)
@@ -37,6 +37,20 @@ def combine_files(transcript_file, source_file, align_files, audio_files, segmen
                             source_f.write(f'{id_}|{audio_file}|{start_frame}|{end_frame}\n')
                             idx += 1
                             start_frame = end_frame
+
+def download_script(example):
+    print(f"curl -LO {MODEL_URL}")
+    print()
+    for x in example:
+        print(f"curl -LO {x['aozora_url']}")
+    print()
+    for x in example:
+        print(f"curl -LO {x['archive_url']}")
+    print()
+    for x in example:
+        archive_url = x['archive_url']
+        audio_dir = os.path.join(re.sub(r'\.zip$', '', os.path.basename(archive_url)))
+        print(f"unzip {archive_url} -d {audio_dir}")
 
 def process(args, params):
 
@@ -225,17 +239,7 @@ def main(args):
         for x in example:
             print(f"    {x['id']:35s}{x['totaltime']:10s}{x['name']:10s}")
     elif args.download:
-        print(f"curl -LO {MODEL_URL}")
-        print()
-        for x in example:
-            print(f"curl -LO {x['aozora_url']}")
-        print()
-        for x in example:
-            print(f"curl -LO {x['archive_url']}")
-        print()
-        for x in example:
-            archive_file = re.sub('\\.zip')
-            print(f"zip {x['archive_url']}")
+        download_script(example)
     elif args.write_wav:
         write_wav_files(audio_dir, source_file, OUTPUT_DIR)
     elif args.sample:
