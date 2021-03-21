@@ -134,7 +134,7 @@ def split_audio(
     with open(segment_file, 'wt') as segf:
         with open_index_data_for_write(audio_data_file) as data:
             y, sr = torchaudio.load(audio_file)
-            assert y.shape[0] == 1
+            assert len(y.shape) == 2 and y.shape[0] == 1
             assert sr == expected_sample_rate
             y = torch.mean(y, axis=0) # to mono
             split_points = get_split_points(y.numpy(), minimum_silent_frames, 
@@ -155,7 +155,7 @@ def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n
 
     corpus = readcorpus_css10ja(os.path.join(CORPUSDATA_CSS10JA_PATH, 'transcript.txt'))
     with open_index_data_for_write(TEXT_PATH % (args.dataset,)) as textf:
-        if True:#with open_index_data_for_write(AUDIO_PATH % (args.dataset,)) as audiof:
+        if with open_index_data_for_write(AUDIO_PATH % (args.dataset,)) as audiof:
             for id_, monophone in tqdm(corpus):
 
                 if not monophone:
@@ -171,13 +171,13 @@ def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n
             
                 file = os.path.join(CORPUSDATA_CSS10JA_PATH, id_)
                 assert '..' not in file # Just make sure it is under the current directory.
-                #y, sr = torchaudio.load(file)
-                #assert y.shape[0] == 1
-                #assert sr == expected_sample_rate
-                #y = torch.mean(y, axis=0) # to mono
-                #mfcc = mfcc_transform(y).T
+                y, sr = torchaudio.load(file)
+                assert len(y.shape) == 2 and y.shape[0] == 1
+                assert sr == expected_sample_rate
+                y = torch.mean(y, axis=0) # to mono
+                mfcc = mfcc_transform(y).T
                 textf.write(encoded)
-                #audiof.write(mfcc.numpy().astype(np.float32))
+                audiof.write(mfcc.numpy().astype(np.float32))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

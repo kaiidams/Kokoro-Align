@@ -1,6 +1,7 @@
 {
     "files.watcherExclude": {
         "**/data/**": true,
-        "**/model/**": true
+        "**/model/**": true,
+        "**/output/**": true
     }
 }

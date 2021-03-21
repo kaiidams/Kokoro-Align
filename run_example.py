@@ -9,9 +9,53 @@ import re
 from glob import glob
 
 DATA_DIR = './data'
+OUTPUT_DIR = './output'
 
 def replace_ext(files, fromext, toext):
     return [re.sub(fromext + '$', toext, file) for file in files]
+
+def combine_files(transcript_file, source_file, align_files, audio_files, segment_files):
+    os.makedirs(os.path.dirname(transcript_file), exist_ok=True)
+    os.makedirs(os.path.dirname(source_file), exist_ok=True)
+    with open(transcript_file, 'wt') as transcript_f:
+        with open(source_file, 'wt') as source_f:
+            idx = 1
+            for align_file, audio_file, segment_file in zip(align_files, audio_files, segment_files): 
+                audio_file = os.path.basename(audio_file)
+                with open(align_file, 'rt') as align_f:
+                    with open(segment_file, 'rt') as segment_f:
+                        start_frame = 0
+                        for align, segment in zip(align_f, segment_f):
+                            align_parts = align.rstrip('\r\n').split('|')
+                            segment_parts = segment.rstrip('\r\n').split('|')
+                            _, text, voca, score = align_parts
+                            end_frame, = segment_parts
+                            transcript_f.write(f'{args.dataset}-{idx}|{text}|{voca}|{score}\n')
+                            source_f.write(f'{args.dataset}-{idx}|{audio_file}|{start_frame}|{end_frame}\n')
+                            idx += 1
+                            start_frame = end_frame
+
+def write_wav_files(audio_dir, source_file, output_dir, expected_sample_rate=22050):
+    import torchaudio
+    with open(source_file, 'rt') as f:
+        current_file = None
+        current_audio = None
+        for line in f:
+            parts = line.rstrip('\r\n').split('|')
+            id_, audio_file, audio_start, audio_end = parts
+            audio_start, audio_end = int(audio_start), int(audio_end)
+            if current_file != audio_file:
+                file = os.path.join(audio_dir, audio_file)
+                print(f'Reading {file}')
+                y, sr = torchaudio.load(file)
+                assert len(y.shape) == 2 and y.shape[0] == 1
+                assert sr == expected_sample_rate
+                current_file = audio_file
+                current_audio = y
+            output_file = os.path.join(output_dir, f'{id_}.wav')
+            print(f'Writing {output_file}')
+            y = current_audio[:, audio_start:audio_end]
+            torchaudio.save(output_file, y, expected_sample_rate)
 
 def process(args, params):
 
@@ -54,6 +98,10 @@ read audio files from `{audio_dir}/*.mp3'.""")
         from voice100.aozora import convert_aozora
         convert_aozora(aozora_file, text_files)
 
+    ##################################################
+    # Convert text to phonemes
+    ##################################################
+
     voca_files = replace_ext(audio_files, '.mp3', '.voca.txt')
     for text_file, voca_file in zip(text_files, voca_files):
         if os.path.exists(voca_file):
@@ -62,6 +110,10 @@ read audio files from `{audio_dir}/*.mp3'.""")
             print(f'Writing {voca_file}')
             from voice100.transcript import write_transcript
             write_transcript(text_file, voca_file)
+
+    ##################################################
+    # Convert audio to MFCC
+    ##################################################
 
     mfcc_files = replace_ext(audio_files, '.mp3', '.mfcc.npz')
     segment_files = replace_ext(audio_files, '.mp3', '.split.txt')
@@ -74,6 +126,10 @@ read audio files from `{audio_dir}/*.mp3'.""")
             split_audio(
                 audio_file, segment_file, mfcc_file
             )
+
+    ##################################################
+    # Predict phonemes from audio
+    ##################################################
 
     logits_files = replace_ext(audio_files, '.mp3', '.logits.npz')
     greed_files = replace_ext(audio_files, '.mp3', '.greed.txt')
@@ -94,6 +150,10 @@ read audio files from `{audio_dir}/*.mp3'.""")
             cargs.model_dir = args.model_dir
             predict(cargs, device)
 
+    ##################################################
+    # Predict the best path
+    ##################################################
+
     best_path_files = replace_ext(audio_files, '.mp3', '.best_path.npz')
     for logits_file, voca_file, best_path_file in zip(logits_files, voca_files, best_path_files): 
         if os.path.exists(best_path_file):
@@ -103,6 +163,10 @@ read audio files from `{audio_dir}/*.mp3'.""")
             from voice100.align import best_path
             best_path(logits_file, voca_file, best_path_file)
 
+    ##################################################
+    # Writing alignment file
+    ##################################################
+
     align_files = replace_ext(audio_files, '.mp3', '.align.txt')
     for best_path_file, mfcc_file, voca_file, align_file in zip(best_path_files, mfcc_files, voca_files, align_files): 
         if os.path.exists(align_file):
@@ -111,6 +175,26 @@ read audio files from `{audio_dir}/*.mp3'.""")
             print(f'Writing {align_file}')
             from voice100.align import align
             align(best_path_file, mfcc_file, voca_file, align_file)
+
+    ##################################################
+    # Combine files
+    ##################################################
+
+    transcript_file = os.path.join(OUTPUT_DIR, f'{args.dataset}.transcript.txt')
+    source_file = os.path.join(OUTPUT_DIR, f'{args.dataset}.source.txt')
+    if os.path.exists(transcript_file) and os.path.exists(source_file):
+        print(f"Skip writing {transcript_file}")
+        print(f"    and {source_file}")
+    else:
+        print(f"Writing {transcript_file}")
+        print(f"    and {source_file}")
+        combine_files(transcript_file, source_file, align_files, audio_files, segment_files)
+
+    ##################################################
+    # Write WAV files
+    ##################################################
+
+    write_wav_files(audio_dir, source_file, OUTPUT_DIR)
 
     print('Done!')
 

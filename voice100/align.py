@@ -103,23 +103,24 @@ def ctc_best_path(log_probs, labels, beam_size=1000, max_move=4):
     determined_path.extend(flush_determined_path(beams))
     #print(len(determined_path))
 
-    return np.array(determined_path, dtype=np.int32)
+    best_path = np.array(determined_path, dtype=np.int32)
+    best_labels = labels[best_path]
+    best_scores = log_probs[np.arange(best_labels.shape[0]), best_labels]
+
+    return best_path, best_labels, best_scores
 
 def best_path(input_file, voca_file, output_file):
-    import torch
-    from torch import nn
     with np.load(input_file) as f:
         logits = f['data']
 
-    logits = torch.from_numpy(logits)
-    log_probs = nn.functional.log_softmax(logits, dim=-1)
-    log_probs = log_probs.numpy()
-
+    logits = logits - np.mean(logits, axis=-1, keepdims=True)
+    log_probs = logits - np.log(np.sum(np.exp(logits), axis=-1, keepdims=True))
     from .transcript import read_transcript
     labels = read_transcript(voca_file)
 
-    best_path = ctc_best_path(log_probs, labels)
-    np.savez(output_file, best_path=best_path)
+    best_path, best_labels, best_scores = ctc_best_path(log_probs, labels)
+    np.savez(output_file, best_path=best_path,
+        best_labels=best_labels, best_scores=best_scores)
 
 def align(best_path_file, mfcc_file, voca_file, align_file):
 
@@ -127,6 +128,7 @@ def align(best_path_file, mfcc_file, voca_file, align_file):
 
     with np.load(best_path_file) as f:
         best_path = f['best_path']
+        best_scores = f['best_scores']
     best_path = best_path // 2
 
     with np.load(mfcc_file) as f:
@@ -148,9 +150,11 @@ def align(best_path_file, mfcc_file, voca_file, align_file):
                 text_start = min(text_start, len(aligner))
                 text_end = min(text_end, len(aligner))
 
+                score = np.mean(best_scores[audio_start:audio_end]).item()
+
                 text, voca = aligner.get_token(text_start, text_end)
 
-                f.write(f'{i+1}|{text}|{voca}\n')
+                f.write(f'{audio_end}|{text}|{voca}|{score}\n')
     except:
         os.unlink(align_file)
         raise
