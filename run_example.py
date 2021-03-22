@@ -10,7 +10,6 @@ from glob import glob
 
 DATA_DIR = './data'
 OUTPUT_DIR = './output'
-SAMPLE_DIR = './sample'
 MODEL_URL = "https://github.com/kaiidams/voice100/releases/download/0.0.2/ctc-20210319.tar.gz"
 
 def replace_ext(files, fromext, toext):
