@@ -53,7 +53,7 @@ def write_transcript(input_file, output_file):
                 for line in f:
                     line = line.strip()
                     line = RUBY_RX.sub(r'\1', line)
-                    for text, voca in text2voca(line):
+                    for text, voca in text2voca(line, ignore_error=True):
                         outf.write(f'{text}|{voca}\n')
     except:
         os.unlink(output_file)

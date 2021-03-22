@@ -10,9 +10,10 @@ from glob import glob
 
 DATA_DIR = './data'
 OUTPUT_DIR = './output'
+MODEL_URL = "https://github.com/kaiidams/voice100/releases/download/0.0.2/ctc-20210319.tar.gz"
 
 def replace_ext(files, fromext, toext):
-    return [re.sub(fromext + '$', toext, file) for file in files]
+    return [re.sub(f'\\.{fromext}$', f'.{toext}', file) for file in files]
 
 def combine_files(transcript_file, source_file, align_files, audio_files, segment_files):
     os.makedirs(os.path.dirname(transcript_file), exist_ok=True)
@@ -30,32 +31,26 @@ def combine_files(transcript_file, source_file, align_files, audio_files, segmen
                             segment_parts = segment.rstrip('\r\n').split('|')
                             _, text, voca, score = align_parts
                             end_frame, = segment_parts
-                            transcript_f.write(f'{args.dataset}-{idx}|{text}|{voca}|{score}\n')
-                            source_f.write(f'{args.dataset}-{idx}|{audio_file}|{start_frame}|{end_frame}\n')
+                            id_ = f'{args.dataset}-{idx:05d}'
+                            transcript_f.write(f'{id_}|{text}|{voca}|{score}\n')
+                            source_f.write(f'{id_}|{audio_file}|{start_frame}|{end_frame}\n')
                             idx += 1
                             start_frame = end_frame
 
-def write_wav_files(audio_dir, source_file, output_dir, expected_sample_rate=22050):
-    import torchaudio
-    with open(source_file, 'rt') as f:
-        current_file = None
-        current_audio = None
-        for line in f:
-            parts = line.rstrip('\r\n').split('|')
-            id_, audio_file, audio_start, audio_end = parts
-            audio_start, audio_end = int(audio_start), int(audio_end)
-            if current_file != audio_file:
-                file = os.path.join(audio_dir, audio_file)
-                print(f'Reading {file}')
-                y, sr = torchaudio.load(file)
-                assert len(y.shape) == 2 and y.shape[0] == 1
-                assert sr == expected_sample_rate
-                current_file = audio_file
-                current_audio = y
-            output_file = os.path.join(output_dir, f'{id_}.wav')
-            print(f'Writing {output_file}')
-            y = current_audio[:, audio_start:audio_end]
-            torchaudio.save(output_file, y, expected_sample_rate)
+def download_script(example):
+    print(f"curl -LO {MODEL_URL}")
+    print()
+    for x in example:
+        print(f"curl -LO {x['aozora_url']}")
+    print()
+    for x in example:
+        print(f"curl -LO {x['archive_url']}")
+    print()
+    for x in example:
+        archive_url = x['archive_url']
+        archive_file = os.path.basename(archive_url)
+        audio_dir = os.path.join(re.sub(r'\.zip$', '', archive_file))
+        print(f"unzip {archive_file} -d {audio_dir}")
 
 def process(args, params):
 
@@ -64,7 +59,7 @@ def process(args, params):
     ##################################################
 
     archive_url = params['archive_url']
-    audio_dir = os.path.join(DATA_DIR, re.sub('.zip$', '', os.path.basename(archive_url)))
+    audio_dir = os.path.join(DATA_DIR, re.sub(r'\.zip$', '', os.path.basename(archive_url)))
     if not os.path.exists(audio_dir):
         print(f"""Audio files are missing. Please download audio files from
 {archive_url} 
@@ -79,7 +74,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
     ##################################################
 
     aozora_url = params['aozora_url']
-    aozora_file = os.path.join(audio_dir, os.path.basename(aozora_url))
+    aozora_file = os.path.join(DATA_DIR, os.path.basename(aozora_url))
     if glob(os.path.join(aozora_file)):
         print(f"Skip downloading Aozora HTML from `{aozora_url}'.")
     if not os.path.exists(aozora_file):
@@ -90,7 +85,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
     # Convert Aozora HTML to text
     ##################################################
 
-    text_files = replace_ext(audio_files, '.mp3', '.plain.txt')
+    text_files = replace_ext(audio_files, 'mp3', 'plain.txt')
     if all(os.path.exists(file) for file in text_files):
         print(f'Skip converting Aozora HTML to text files')
     else:
@@ -102,7 +97,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
     # Convert text to phonemes
     ##################################################
 
-    voca_files = replace_ext(audio_files, '.mp3', '.voca.txt')
+    voca_files = replace_ext(audio_files, 'mp3', 'voca.txt')
     for text_file, voca_file in zip(text_files, voca_files):
         if os.path.exists(voca_file):
             print(f'Skip writing {voca_file}')
@@ -115,8 +110,8 @@ read audio files from `{audio_dir}/*.mp3'.""")
     # Convert audio to MFCC
     ##################################################
 
-    mfcc_files = replace_ext(audio_files, '.mp3', '.mfcc.npz')
-    segment_files = replace_ext(audio_files, '.mp3', '.split.txt')
+    mfcc_files = replace_ext(audio_files, 'mp3', 'mfcc.npz')
+    segment_files = replace_ext(audio_files, 'mp3', 'split.txt')
     for audio_file, segment_file, mfcc_file in zip(audio_files, segment_files, mfcc_files):
         if os.path.exists(mfcc_file):
             print(f'Skip converting {audio_file} to MFCC')
@@ -131,8 +126,8 @@ read audio files from `{audio_dir}/*.mp3'.""")
     # Predict phonemes from audio
     ##################################################
 
-    logits_files = replace_ext(audio_files, '.mp3', '.logits.npz')
-    greed_files = replace_ext(audio_files, '.mp3', '.greed.txt')
+    logits_files = replace_ext(audio_files, 'mp3', 'logits.npz')
+    greed_files = replace_ext(audio_files, 'mp3', 'greed.txt')
     for mfcc_file, logits_file, greed_file in zip(mfcc_files, logits_files, greed_files): 
         if os.path.exists(logits_file):
             print(f'Skip predicting phonemes of {mfcc_file}')
@@ -154,7 +149,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
     # Predict the best path
     ##################################################
 
-    best_path_files = replace_ext(audio_files, '.mp3', '.best_path.npz')
+    best_path_files = replace_ext(audio_files, 'mp3', 'best_path.npz')
     for logits_file, voca_file, best_path_file in zip(logits_files, voca_files, best_path_files): 
         if os.path.exists(best_path_file):
             print(f'Skip writing {best_path_file}')
@@ -167,7 +162,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
     # Writing alignment file
     ##################################################
 
-    align_files = replace_ext(audio_files, '.mp3', '.align.txt')
+    align_files = replace_ext(audio_files, 'mp3', 'align.txt')
     for best_path_file, mfcc_file, voca_file, align_file in zip(best_path_files, mfcc_files, voca_files, align_files): 
         if os.path.exists(align_file):
             print(f'Skip writing {align_file}')
@@ -190,18 +185,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
         print(f"    and {source_file}")
         combine_files(transcript_file, source_file, align_files, audio_files, segment_files)
 
-    ##################################################
-    # Write WAV files
-    ##################################################
-
-    wav_files = glob(os.path.join(OUTPUT_DIR, f'{args.dataset}-*.wav'))
-    if wav_files:
-        print(f"There are some WAV files `{wav_files[0]}'")
-        print(f"Skip writing WAV files")
-    else:
-        write_wav_files(audio_dir, source_file, OUTPUT_DIR)
-
-    print('All done!')
+    print('Done!')
 
 def main(args):
     with open('example.json') as f:
@@ -214,9 +198,7 @@ def main(args):
         for x in example:
             print(f"    {x['id']:35s}{x['totaltime']:10s}{x['name']:10s}")
     elif args.download:
-        for x in example:
-            print(f"curl -LO {x['aozora_url']}")
-            print(f"curl -LO {x['archive_url']}")
+        download_script(example)
     else:
         example = { x['id']: x for x in example }
         os.makedirs('data', exist_ok=True)

@@ -356,9 +356,7 @@ def yomi2voca(text: str, ignore_error: bool) -> str:
         res += ' ' + text[0]
         text = text[1:]
     res = _COLON_RX.sub(':', res)
-    if ignore_error:
-        res = _REJECT_RX.sub('', res)
-    else:
+    if not ignore_error:
         m = _REJECT_RX.search(res)
         if m:
             raise ValueError('Invalid characters in yomi "%s".' % m.group(0))

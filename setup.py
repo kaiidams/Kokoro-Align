@@ -11,7 +11,8 @@ setup(
     packages=['voice100'],
     long_description="Voice100 is a speech-text aligner.",
     install_requires=[
-        'torch'
+        'torch',
+        'torchaudio'
     ],
     extras_require={
         "text": [

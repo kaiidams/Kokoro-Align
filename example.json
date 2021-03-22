@@ -24,6 +24,14 @@
         "totaltime": "08:13:26"
     },
     {
+        "id": "nowaki-by-soseki-natsume",
+        "name": "野分 (Nowaki)",
+        "librivox_url": "https://librivox.org/nowaki-by-soseki-natsume/",
+        "aozora_url": "http://www.aozora.gr.jp/cards/000148/files/791_14959.html",
+        "archive_url": "http://www.archive.org/download/nowaki_um_librivox/nowaki_um_librivox_64kb_mp3.zip",
+        "totaltime": "4:40:49"
+    },
+    {
         "id": "kusamakura-by-soseki-natsume",
         "name": "草枕 (Kusamakura)",
         "librivox_url": "https://librivox.org/kusamakura-by-soseki-natsume/",
@@ -38,14 +46,6 @@
         "aozora_url": "http://www.aozora.gr.jp/cards/000148/files/752_14964.html",
         "archive_url": "http://www.archive.org/download//botchan_1310_librivox/botchan_1310_librivox_64kb_mp3.zip",
         "totaltime": "04:26:27"
-    },
-    {
-        "id": "nowaki-by-soseki-natsume",
-        "name": "野分 (Nowaki)",
-        "librivox_url": "https://librivox.org/nowaki-by-soseki-natsume/",
-        "aozora_url": "http://www.aozora.gr.jp/cards/000148/files/791_14959.html",
-        "archive_url": "http://www.archive.org/download/nowaki_um_librivox/nowaki_um_librivox_64kb_mp3.zip",
-        "totaltime": "4:40:49"
     },
     {
         "id": "gan-by-ogai-mori",
