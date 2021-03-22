@@ -10,19 +10,32 @@ class VocaAligner:
     def __init__(self, input_file):
         self.text_tokens = []
         self.voca_tokens = []
+        self.attach_dirs = []
         self.token_pos = []
 
-        pos = 0
+        cur_token_pos = 0
+        cur_label_pos = 0
+        split_pos = 0
         with open(input_file) as f:
             for line in f:
                 parts = line.rstrip('\r\n').split('|')
                 text, voca = parts
+                encoded = encode_text2(voca)
+                encoded_len = len(encoded)
+
                 self.text_tokens.append(text)
                 self.voca_tokens.append(voca)
 
-                voca_len = len(encode_text2(voca))
-                self.token_pos.extend([pos] * voca_len)
-                pos += 1
+                if encoded_len > 0:
+                    cur_label_pos = cur_label_pos + encoded_len
+                    fill_len = cur_label_pos - (encoded_len // 2) - len(self.token_pos)
+                    self.token_pos.extend([split_pos] * fill_len)
+                    cur_token_pos += 1
+                    split_pos = cur_token_pos
+                else:
+                    cur_token_pos += 1
+                    if voca == ',' or voca == '.' or voca == '!' or voca == '?':
+                        split_pos = cur_token_pos
 
     def __len__(self):
         return len(self.token_pos)

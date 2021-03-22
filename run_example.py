@@ -18,24 +18,29 @@ def replace_ext(files, fromext, toext):
 def combine_files(transcript_file, source_file, align_files, audio_files, segment_files):
     os.makedirs(os.path.dirname(transcript_file), exist_ok=True)
     os.makedirs(os.path.dirname(source_file), exist_ok=True)
-    with open(transcript_file, 'wt') as transcript_f:
-        with open(source_file, 'wt') as source_f:
-            idx = 1
-            for align_file, audio_file, segment_file in zip(align_files, audio_files, segment_files): 
-                audio_file = os.path.basename(audio_file)
-                with open(align_file, 'rt') as align_f:
-                    with open(segment_file, 'rt') as segment_f:
-                        start_frame = 0
-                        for align, segment in zip(align_f, segment_f):
-                            align_parts = align.rstrip('\r\n').split('|')
-                            segment_parts = segment.rstrip('\r\n').split('|')
-                            _, text, voca, score = align_parts
-                            end_frame, = segment_parts
-                            id_ = f'{args.dataset}-{idx:05d}'
-                            transcript_f.write(f'{id_}|{text}|{voca}|{score}\n')
-                            source_f.write(f'{id_}|{audio_file}|{start_frame}|{end_frame}\n')
-                            idx += 1
-                            start_frame = end_frame
+    try:
+        with open(transcript_file, 'wt') as transcript_f:
+            with open(source_file, 'wt') as source_f:
+                idx = 1
+                for align_file, audio_file, segment_file in zip(align_files, audio_files, segment_files): 
+                    audio_file = os.path.basename(audio_file)
+                    with open(align_file, 'rt') as align_f:
+                        with open(segment_file, 'rt') as segment_f:
+                            start_frame = 0
+                            for align, segment in zip(align_f, segment_f):
+                                align_parts = align.rstrip('\r\n').split('|')
+                                segment_parts = segment.rstrip('\r\n').split('|')
+                                _, text, voca, _, _, _, _ = align_parts
+                                end_frame, = segment_parts
+                                id_ = f'{args.dataset}-{idx:05d}'
+                                transcript_f.write(f'{id_}|{text}|{voca}\n')
+                                source_f.write(f'{id_}|{audio_file}|{start_frame}|{end_frame}\n')
+                                idx += 1
+                                start_frame = end_frame
+    except:
+        os.unlink(transcript_file)
+        os.unlink(source_file)
+        raise
 
 def download_script(example):
     print(f"curl -LO {MODEL_URL}")
@@ -175,7 +180,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
     # Combine files
     ##################################################
 
-    transcript_file = os.path.join(OUTPUT_DIR, f'{args.dataset}.transcript.txt')
+    transcript_file = os.path.join(OUTPUT_DIR, f'{args.dataset}.transcripts.txt')
     source_file = os.path.join(OUTPUT_DIR, f'{args.dataset}.source.txt')
     if os.path.exists(transcript_file) and os.path.exists(source_file):
         print(f"Skip writing {transcript_file}")
