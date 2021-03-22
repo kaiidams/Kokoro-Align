@@ -188,47 +188,6 @@ read audio files from `{audio_dir}/*.mp3'.""")
 
     print('Done!')
 
-def write_wav_files(audio_dir, source_file, output_dir, expected_sample_rate=22050):
-    import torchaudio
-    with open(source_file, 'rt') as f:
-        current_file = None
-        current_audio = None
-        for line in f:
-            parts = line.rstrip('\r\n').split('|')
-            id_, audio_file, audio_start, audio_end = parts
-            audio_start, audio_end = int(audio_start), int(audio_end)
-            if current_file != audio_file:
-                file = os.path.join(audio_dir, audio_file)
-                print(f'Reading {file}')
-                y, sr = torchaudio.load(file)
-                assert len(y.shape) == 2 and y.shape[0] == 1
-                assert sr == expected_sample_rate
-                current_file = audio_file
-                current_audio = y
-            output_file = os.path.join(output_dir, f'{id_}.wav')
-            print(f'Writing {output_file}')
-            y = current_audio[:, audio_start:audio_end]
-            torchaudio.save(output_file, y, expected_sample_rate)
-
-def sample_data(k=100):
-    import random
-    import shutil
-    samples = []
-    transcript_files = glob(os.path.join(OUTPUT_DIR, '*.transcript.txt'))
-    for transcript_file in transcript_files:
-        with open(transcript_file, 'rt') as f:
-            for line in f:
-                samples.append(line)
-    sampled_lines = random.sample(samples, k=100)
-    os.makedirs(SAMPLE_DIR, exist_ok=False)
-    with open(os.path.join(SAMPLE_DIR, 'transcript.txt'), 'wt') as f:
-        for line in sampled_lines:
-            f.write(line)
-            id_, _, _, _ = line.rstrip('\r\n').split('|')
-            wav_src_file = os.path.join(OUTPUT_DIR, f'{id_}.wav')
-            wav_dst_file = os.path.join(SAMPLE_DIR, f'{id_}.wav')
-            shutil.copyfile(wav_src_file, wav_dst_file)
-
 def main(args):
     with open('example.json') as f:
         example = json.load(f)
@@ -241,11 +200,6 @@ def main(args):
             print(f"    {x['id']:35s}{x['totaltime']:10s}{x['name']:10s}")
     elif args.download:
         download_script(example)
-    elif args.write_wav:
-        write_wav_files(audio_dir, source_file, OUTPUT_DIR)
-    elif args.sample:
-        sample_data('voice100-sample100', k=100)
-        sample_data('voice100-sample10', k=10)
     else:
         example = { x['id']: x for x in example }
         os.makedirs('data', exist_ok=True)
@@ -258,8 +212,6 @@ if __name__ == '__main__':
                         help='disables CUDA training')
     parser.add_argument('--list', action='store_true', help='List supported dataset ID.')
     parser.add_argument('--download', action='store_true', help='Print download script.')
-    parser.add_argument('--write-wav', action='store_true', help='Write WAV files.')
-    parser.add_argument('--sample', action='store_true', help='Make a sample dataset.')
     parser.add_argument('--dataset', default='gongitsune-by-nankichi-niimi', 
         help='Dataset ID to process')
     parser.add_argument('--model-dir', 

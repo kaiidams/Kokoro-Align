@@ -132,5 +132,4 @@ dmypy.json
 /data
 /model
 /output
-/sample100
-/sample10
+/sample
