@@ -128,6 +128,7 @@ def align(best_path_file, mfcc_file, voca_file, align_file):
 
     with np.load(best_path_file) as f:
         best_path = f['best_path']
+        best_labels = f['best_labels']
         best_scores = f['best_scores']
     best_path = best_path // 2
 
@@ -150,11 +151,17 @@ def align(best_path_file, mfcc_file, voca_file, align_file):
                 text_start = min(text_start, len(aligner))
                 text_end = min(text_end, len(aligner))
 
-                score = np.mean(best_scores[audio_start:audio_end]).item()
+                labels = best_labels[audio_start:audio_end]
+                scores = best_scores[audio_start:audio_end]
+
+                decoded = merge_repeated2(decode_text2(labels))
+                non_blanks = np.sum(labels != 0).item()
+                non_blanks_score = np.sum(scores[labels != 0]).item()
+                all_score = np.sum(scores).item()
 
                 text, voca = aligner.get_token(text_start, text_end)
 
-                f.write(f'{audio_end}|{text}|{voca}|{score}\n')
+                f.write(f'{audio_end}|{text}|{voca}|{decoded}|{non_blanks}|{non_blanks_score}|{all_score}\n')
     except:
         os.unlink(align_file)
         raise

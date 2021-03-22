@@ -32,7 +32,7 @@ def combine_files(transcript_file, source_file, align_files, audio_files, segmen
                             _, text, voca, score = align_parts
                             end_frame, = segment_parts
                             id_ = f'{args.dataset}-{idx:05d}'
-                            transcript_f.write(f'{id_}|{text}|{voca}|{score}\n')
+                            transcript_f.write(f'{id_}|{text}|{voca}\n')
                             source_f.write(f'{id_}|{audio_file}|{start_frame}|{end_frame}\n')
                             idx += 1
                             start_frame = end_frame
@@ -175,7 +175,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
     # Combine files
     ##################################################
 
-    transcript_file = os.path.join(OUTPUT_DIR, f'{args.dataset}.transcript.txt')
+    transcript_file = os.path.join(OUTPUT_DIR, f'{args.dataset}.transcripts.txt')
     source_file = os.path.join(OUTPUT_DIR, f'{args.dataset}.source.txt')
     if os.path.exists(transcript_file) and os.path.exists(source_file):
         print(f"Skip writing {transcript_file}")
