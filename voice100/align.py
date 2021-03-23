@@ -165,3 +165,23 @@ def align(best_path_file, mfcc_file, voca_file, align_file):
     except:
         os.unlink(align_file)
         raise
+
+def pandas_read_align(files):
+    import pandas as pd
+    d = []
+    for file in files:
+        with open(file) as f:
+            audio_end = '0'
+            for line in f:
+                parts = line.rstrip().split('|')
+                parts.insert(0, audio_end)
+                d.append(parts)
+                audio_end = parts[1]
+    df = pd.DataFrame(d, columns='audio_start audio_end text voca decoded non_blanks non_blanks_score all_score'.split(),)
+    df['audio_start'] = df['audio_start'].astype(int)
+    df['audio_end'] = df['audio_end'].astype(int)
+    df['non_blanks'] = df['non_blanks'].astype(int)
+    df['non_blanks_score'] = df['non_blanks_score'].astype(float)
+    df['all_score'] = df['all_score'].astype(float)
+    df['audio_len'] = df['audio_end'] - df['audio_start']
+    return df

@@ -43,14 +43,22 @@ def download_script(data_dir, params_list):
 ng_list = [
     'リブリボックス',
     'ボランティアについてなど',
-    'この録音はパブリックドメイン'
+    'この録音はパブリックドメイン',
+    'ために録音されました',
 ]
 
-def check_text_voca(text, voca):
+def block_text_voca(text, voca):
     if text.strip() and voca.strip():
         x = text.replace(' ', '')
-        return not any(y in x for y in ng_list)
-    return False
+        return any(y in x for y in ng_list)
+    return True
+
+def block_voca_decoded(voca, decoded):
+    """Check if more than 70% of decoded labels match with the original transcript
+    """
+    voca_len = len(voca.split())
+    decoded_len = len(decoded.split())
+    return not (voca_len and decoded_len and decoded_len / voca_len > 0.7)
 
 def combine_files(metadata_file, align_files, audio_files, segment_files):
     os.makedirs(os.path.dirname(metadata_file), exist_ok=True)
@@ -65,14 +73,16 @@ def combine_files(metadata_file, align_files, audio_files, segment_files):
                         for align, segment in zip(align_f, segment_f):
                             align_parts = align.rstrip('\r\n').split('|')
                             segment_parts = segment.rstrip('\r\n').split('|')
-                            _, text, voca, _, _, _, _ = align_parts                            
+                            _, text, voca, decoded, _, _, _ = align_parts                            
                             end_frame, = segment_parts
-                            if check_text_voca(text, voca):
+                            if block_text_voca(text, voca):
+                                print(f'Blocking by NG word: {text}')
+                            elif block_voca_decoded(voca, decoded):
+                                print(f'Blocking by too few match {text}')
+                            else:
                                 id_ = f'{args.dataset}-{idx:05d}'
                                 metadata_f.write(f'{id_}|{audio_file}|{start_frame}|{end_frame}|{text}|{voca}\n')
-                            else:
-                                print(f'Skilling {align}')
-                            idx += 1
+                                idx += 1
                             start_frame = end_frame
     except:
         os.unlink(metadata_file)
