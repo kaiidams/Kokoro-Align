@@ -25,6 +25,7 @@ class AozoraParser:
         self.outfile = None
         self.text = ''
         self.wrote_text = False
+        self.split_hack = False
 
     def _read_aozora_file(self, file_or_url):
         print(f'Reading Aozora {file_or_url}')
@@ -36,6 +37,8 @@ class AozoraParser:
         else:
             with open(file_or_url, 'rt', encoding='shift_jis') as f:
                 self.soup = BeautifulSoup(f, 'html.parser')
+            if file_or_url.endswith('42633_22951.html'):
+                self.split_hack = True
 
     def _close_current_file(self):
         if self.outfile:
@@ -74,6 +77,16 @@ class AozoraParser:
                     for child in node.children:
                         self._process_soup(child)
         else:
+            if self.split_hack:
+                # caucasus-no-hagetaka-by-yoshio-toyoshima doesn't
+                # use <Hx> HTML tag, guess if `text' is for a title.
+                if node.strip() in ['一', '二', '三', '四', '五']:
+                    self._write_line()
+                    self._write_prologue()
+                    self.text += node
+                    self._write_line()
+                    self.wrote_text = False
+
             self.text += node
 
     def _write_bigprologue(self):

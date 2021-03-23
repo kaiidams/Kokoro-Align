@@ -40,7 +40,7 @@ def download_script(data_dir, params_list):
         archive_file = os.path.basename(archive_url)
         print(f"unzip {archive_file} -d {id_}")
 
-def combine_files(metadata_file, align_files, audio_files, segment_files):
+def combine_files(dataset, align_files, audio_files, segment_files, metadata_file):
 
     from voice100.encoder import is_valid_text2
 
@@ -88,7 +88,7 @@ def combine_files(metadata_file, align_files, audio_files, segment_files):
                             elif block_unknown_yomi(voca):
                                 print(f'Blocking by unknown yomi {voca}')
                             else:
-                                id_ = f'{args.dataset}-{idx:05d}'
+                                id_ = f'{dataset}-{idx:05d}'
                                 metadata_f.write(f'{id_}|{audio_file}|{start_frame}|{end_frame}|{text}|{voca}\n')
                                 idx += 1
                             start_frame = end_frame
@@ -224,7 +224,19 @@ read audio files from `{audio_dir}/*.mp3'.""")
         print(f"Skip writing {metadata_file}")
     else:
         print(f"Writing {metadata_file}")
-        combine_files(metadata_file, align_files, audio_files, segment_files)
+        combine_files(args.dataset, align_files, audio_files, segment_files, metadata_file)
+
+    ##################################################
+    # Copy index
+    ##################################################
+
+    index_file = os.path.join(args.output_dir, f'index.json')
+    if os.path.exists(index_file):
+        print(f"Skip writing {index_file}")
+    else:
+        print(f"Writing {index_file}")
+        import shutil
+        shutil.copyfile('example.json', index_file)
 
     print('Done!')
 

@@ -70,5 +70,14 @@
         "archive_url": "http://archive.org/download/gongitsune_um_librivox/gongitsune_um_librivox_64kb_mp3.zip",
         "totaltime": "0:15:42",
         "splits": "tiny"
+    },
+    {
+        "id": "caucasus-no-hagetaka-by-yoshio-toyoshima",
+        "name": "コーカサスの禿鷹 (Caucasus no Hagetaka)",
+        "librivox_url": "https://librivox.org/caucasus-no-hagetaka-by-yoshio-toyoshima/",
+        "aozora_url": "http://www.aozora.gr.jp/cards/000906/files/42633_22951.html",
+        "archive_url": "http://www.archive.org/download/caucasus_no_hagetaka_um_librivox/caucasus_no_hagetaka_um_librivox_64kb_mp3.zip",
+        "totaltime": "0:13:04",
+        "splits": "tiny"
     }
 ]
