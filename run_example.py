@@ -42,7 +42,7 @@ def download_script(data_dir, params_list):
 
 def combine_files(metadata_file, align_files, audio_files, segment_files):
 
-    from voice100.encoder import vocab2
+    from voice100.encoder import is_valid_text2
 
     ng_list = [
         'リブリボックス',
@@ -50,8 +50,6 @@ def combine_files(metadata_file, align_files, audio_files, segment_files):
         'この録音はパブリックドメイン',
         'ために録音されました',
     ]
-
-    accepted_vocab = set(vocab2[1:] + ' . , ! ?'.split())
 
     def block_text_voca(text, voca):
         if text.strip() and voca.strip():
@@ -67,7 +65,7 @@ def combine_files(metadata_file, align_files, audio_files, segment_files):
         return not (voca_len and decoded_len and decoded_len / voca_len > 0.7)
 
     def block_unknown_yomi(voca):
-        return not all(token in accepted_vocab for token in voca.split())
+        return not is_valid_text2(voca)
 
     os.makedirs(os.path.dirname(metadata_file), exist_ok=True)
     try:

@@ -35,7 +35,7 @@ def getyomi(text) -> List[Tuple[str, str]]:
             if word in _symbols_tokens:
                 res.append((word, word))
             elif word == 'っ' or word == 'ッ':
-                res.append((word, word))
+                res.append((word, 'っ'))
             elif word in _no_yomi_tokens:
                 res.append((word, ''))
             else:
