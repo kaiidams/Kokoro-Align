@@ -52,7 +52,7 @@ def check_text_voca(text, voca):
         return not any(x in y for y in ng_list)
     return False
 
-def combine_files(metadata_file, source_file, align_files, audio_files, segment_files):
+def combine_files(metadata_file, align_files, audio_files, segment_files):
     os.makedirs(os.path.dirname(metadata_file), exist_ok=True)
     try:
         with open(metadata_file, 'wt') as metadata_f:
