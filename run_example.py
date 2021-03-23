@@ -49,7 +49,7 @@ ng_list = [
 def check_text_voca(text, voca):
     if text.strip() and voca.strip():
         x = text.replace(' ', '')
-        return not any(x in y for y in ng_list)
+        return not any(y in x for y in ng_list)
     return False
 
 def combine_files(metadata_file, align_files, audio_files, segment_files):
