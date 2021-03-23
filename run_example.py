@@ -8,54 +8,75 @@ import sys
 import re
 from glob import glob
 
-DATA_DIR = './data'
-OUTPUT_DIR = './output'
 MODEL_URL = "https://github.com/kaiidams/voice100/releases/download/0.0.2/ctc-20210319.tar.gz"
 
 def replace_ext(files, fromext, toext):
     return [re.sub(f'\\.{fromext}$', f'.{toext}', file) for file in files]
 
-def combine_files(transcript_file, source_file, align_files, audio_files, segment_files):
-    os.makedirs(os.path.dirname(transcript_file), exist_ok=True)
-    os.makedirs(os.path.dirname(source_file), exist_ok=True)
-    try:
-        with open(transcript_file, 'wt') as transcript_f:
-            with open(source_file, 'wt') as source_f:
-                idx = 1
-                for align_file, audio_file, segment_file in zip(align_files, audio_files, segment_files): 
-                    audio_file = os.path.basename(audio_file)
-                    with open(align_file, 'rt') as align_f:
-                        with open(segment_file, 'rt') as segment_f:
-                            start_frame = 0
-                            for align, segment in zip(align_f, segment_f):
-                                align_parts = align.rstrip('\r\n').split('|')
-                                segment_parts = segment.rstrip('\r\n').split('|')
-                                _, text, voca, _, _, _, _ = align_parts
-                                end_frame, = segment_parts
-                                id_ = f'{args.dataset}-{idx:05d}'
-                                transcript_f.write(f'{id_}|{text}|{voca}\n')
-                                source_f.write(f'{id_}|{audio_file}|{start_frame}|{end_frame}\n')
-                                idx += 1
-                                start_frame = end_frame
-    except:
-        os.unlink(transcript_file)
-        os.unlink(source_file)
-        raise
+def list_datasets(params_list):
+    print("""List of supported dataset name:
 
-def download_script(example):
+    ID                                 Time      Name""")
+    for params in params_list:
+        id_ = params['id']
+        totaltime = params['totaltime']
+        name = params['name']
+        print(f"    {id_:35s}{totaltime:10s}{name:10s}")
+
+def download_script(data_dir, params_list):
+    print(f'cd {data_dir}')
+    print()
     print(f"curl -LO {MODEL_URL}")
     print()
-    for x in example:
+    for x in params_list:
         print(f"curl -LO {x['aozora_url']}")
     print()
-    for x in example:
+    for x in params_list:
         print(f"curl -LO {x['archive_url']}")
     print()
-    for x in example:
-        archive_url = x['archive_url']
+    for params in params_list:
+        id_ = params['id']
+        archive_url = params['archive_url']
         archive_file = os.path.basename(archive_url)
-        audio_dir = os.path.join(re.sub(r'\.zip$', '', archive_file))
-        print(f"unzip {archive_file} -d {audio_dir}")
+        print(f"unzip {archive_file} -d {id_}")
+
+ng_list = [
+    'リブリボックス',
+    'ボランティアについてなど',
+    'この録音はパブリックドメイン'
+]
+
+def check_text_voca(text, voca):
+    if text.strip() and voca.strip():
+        x = text.replace(' ', '')
+        return not any(x in y for y in ng_list)
+    return False
+
+def combine_files(metadata_file, source_file, align_files, audio_files, segment_files):
+    os.makedirs(os.path.dirname(metadata_file), exist_ok=True)
+    try:
+        with open(metadata_file, 'wt') as metadata_f:
+            idx = 1
+            for align_file, audio_file, segment_file in zip(align_files, audio_files, segment_files): 
+                audio_file = os.path.basename(audio_file)
+                with open(align_file, 'rt') as align_f:
+                    with open(segment_file, 'rt') as segment_f:
+                        start_frame = 0
+                        for align, segment in zip(align_f, segment_f):
+                            align_parts = align.rstrip('\r\n').split('|')
+                            segment_parts = segment.rstrip('\r\n').split('|')
+                            _, text, voca, _, _, _, _ = align_parts                            
+                            end_frame, = segment_parts
+                            if check_text_voca(text, voca):
+                                id_ = f'{args.dataset}-{idx:05d}'
+                                metadata_f.write(f'{id_}|{audio_file}|{start_frame}|{end_frame}|{text}|{voca}\n')
+                            else:
+                                print(f'Skilling {align}')
+                            idx += 1
+                            start_frame = end_frame
+    except:
+        os.unlink(metadata_file)
+        raise
 
 def process(args, params):
 
@@ -64,11 +85,11 @@ def process(args, params):
     ##################################################
 
     archive_url = params['archive_url']
-    audio_dir = os.path.join(DATA_DIR, re.sub(r'\.zip$', '', os.path.basename(archive_url)))
+    audio_dir = os.path.join(args.data_dir, params['id'])
     if not os.path.exists(audio_dir):
-        print(f"""Audio files are missing. Please download audio files from
+        print(f"""Audio files are missing. Please download the archive file from
 {archive_url} 
-and extract the archive file in `{audio_dir}'. This scripts
+and extract files in `{audio_dir}'. This scripts
 read audio files from `{audio_dir}/*.mp3'.""")
         sys.exit(1)
     else:
@@ -79,7 +100,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
     ##################################################
 
     aozora_url = params['aozora_url']
-    aozora_file = os.path.join(DATA_DIR, os.path.basename(aozora_url))
+    aozora_file = os.path.join(args.data_dir, os.path.basename(aozora_url))
     if glob(os.path.join(aozora_file)):
         print(f"Skip downloading Aozora HTML from `{aozora_url}'.")
     if not os.path.exists(aozora_file):
@@ -177,38 +198,30 @@ read audio files from `{audio_dir}/*.mp3'.""")
             align(best_path_file, mfcc_file, voca_file, align_file)
 
     ##################################################
-    # Combine files
+    # Write metadata
     ##################################################
 
-    transcript_file = os.path.join(OUTPUT_DIR, f'{args.dataset}.transcripts.txt')
-    source_file = os.path.join(OUTPUT_DIR, f'{args.dataset}.source.txt')
-    if os.path.exists(transcript_file) and os.path.exists(source_file):
-        print(f"Skip writing {transcript_file}")
-        print(f"    and {source_file}")
+    metadata_file = os.path.join(args.output_dir, f'{args.dataset}.metadata.txt')
+    if os.path.exists(metadata_file):
+        print(f"Skip writing {metadata_file}")
     else:
-        print(f"Writing {transcript_file}")
-        print(f"    and {source_file}")
-        combine_files(transcript_file, source_file, align_files, audio_files, segment_files)
+        print(f"Writing {metadata_file}")
+        combine_files(metadata_file, align_files, audio_files, segment_files)
 
     print('Done!')
 
 def main(args):
     with open('example.json') as f:
-        example = json.load(f)
+        params_list = json.load(f)
 
     if args.list:
-        print("""List of supported dataset name:
-
-    ID                                 Time      Name      """)
-        for x in example:
-            print(f"    {x['id']:35s}{x['totaltime']:10s}{x['name']:10s}")
+        list_datasets(params_list)
     elif args.download:
-        download_script(example)
+        download_script(args.data_dir, params_list)
     else:
-        example = { x['id']: x for x in example }
-        os.makedirs('data', exist_ok=True)
-        params = example[args.dataset]
-        process(args, params)
+        for params in params_list:
+            if params['id'] == args.dataset:
+                process(args, params)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -218,6 +231,8 @@ if __name__ == '__main__':
     parser.add_argument('--download', action='store_true', help='Print download script.')
     parser.add_argument('--dataset', default='gongitsune-by-nankichi-niimi', 
         help='Dataset ID to process')
+    parser.add_argument('--data-dir', default='data', help='Data directory')
+    parser.add_argument('--output-dir', default='output', help='Output directory')
     parser.add_argument('--model-dir', 
         default='./model/ctc-20210319', help='Directory to load checkpoints.')
     parser.add_argument('--batch-size', type=int, default=128, help='Batch size')

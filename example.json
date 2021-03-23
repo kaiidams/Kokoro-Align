@@ -5,7 +5,8 @@
         "librivox_url": "https://librivox.org/meian-by-soseki-natsume/",
         "aozora_url": "http://www.aozora.gr.jp/cards/000148/files/782_14969.html",
         "archive_url": "http://www.archive.org/download//meian_1403_librivox/meian_1403_librivox_64kb_mp3.zip",
-        "totaltime": "16:39:29"
+        "totaltime": "16:39:29",
+        "splits": ""
     },
     {
         "id": "kokoro-by-soseki-natsume",
@@ -13,7 +14,8 @@
         "librivox_url": "https://librivox.org/kokoro-by-soseki-natsume/",
         "aozora_url": "http://www.aozora.gr.jp/cards/000148/files/773_14560.html",
         "archive_url": "http://www.archive.org/download//kokoro_natsume_um_librivox/kokoro_natsume_um_librivox_64kb_mp3.zip",
-        "totaltime": "08:46:41"
+        "totaltime": "08:46:41",
+        "splits": ""
     },
     {
         "id": "inakakyoshi-by-katai-tayama",
@@ -21,7 +23,8 @@
         "librivox_url": "https://librivox.org/inakakyoshi-by-katai-tayama/",
         "aozora_url": "http://www.aozora.gr.jp/cards/000214/files/1668_26031.html",
         "archive_url": "http://www.archive.org/download//inakakyoshi_1311_librivox/inakakyoshi_1311_librivox_64kb_mp3.zip",
-        "totaltime": "08:13:26"
+        "totaltime": "08:13:26",
+        "splits": ""
     },
     {
         "id": "nowaki-by-soseki-natsume",
@@ -29,7 +32,8 @@
         "librivox_url": "https://librivox.org/nowaki-by-soseki-natsume/",
         "aozora_url": "http://www.aozora.gr.jp/cards/000148/files/791_14959.html",
         "archive_url": "http://www.archive.org/download/nowaki_um_librivox/nowaki_um_librivox_64kb_mp3.zip",
-        "totaltime": "4:40:49"
+        "totaltime": "4:40:49",
+        "splits": ""
     },
     {
         "id": "kusamakura-by-soseki-natsume",
@@ -37,7 +41,8 @@
         "librivox_url": "https://librivox.org/kusamakura-by-soseki-natsume/",
         "aozora_url": "http://www.aozora.gr.jp/cards/000148/files/776_14941.html",
         "archive_url": "http://www.archive.org/download//kusamakura_1311_librivox/kusamakura_1311_librivox_64kb_mp3.zip",
-        "totaltime": "04:27:35"
+        "totaltime": "04:27:35",
+        "splits": "small"
     },
     {
         "id": "botchan-by-soseki-natsume-2",
@@ -45,7 +50,8 @@
         "librivox_url": "https://librivox.org/botchan-by-soseki-natsume-2/",
         "aozora_url": "http://www.aozora.gr.jp/cards/000148/files/752_14964.html",
         "archive_url": "http://www.archive.org/download//botchan_1310_librivox/botchan_1310_librivox_64kb_mp3.zip",
-        "totaltime": "04:26:27"
+        "totaltime": "04:26:27",
+        "splits": "small"
     },
     {
         "id": "gan-by-ogai-mori",
@@ -53,7 +59,8 @@
         "librivox_url": "https://librivox.org/gan-by-ogai-mori/",
         "aozora_url": "http://www.aozora.gr.jp/cards/000129/files/45224_19919.html",
         "archive_url": "http://www.archive.org/download//gan_1311_librivox/gan_1311_librivox_64kb_mp3.zip",
-        "totaltime": "03:41:31"
+        "totaltime": "03:41:31",
+        "splits": "small"
     },
     {
         "id": "gongitsune-by-nankichi-niimi",
@@ -61,6 +68,7 @@
         "librivox_url": "https://librivox.org/gongitsune-by-nankichi-niimi/",
         "aozora_url": "http://www.aozora.gr.jp/cards/000121/files/628_14895.html",
         "archive_url": "http://archive.org/download/gongitsune_um_librivox/gongitsune_um_librivox_64kb_mp3.zip",
-        "totaltime": "0:15:42"
+        "totaltime": "0:15:42",
+        "splits": "tiny"
     }
 ]
