@@ -45,7 +45,7 @@ class VocaAligner:
         token_end = self.token_pos[end] if end < len(self) else len(self.text_tokens)
         text = ' '.join(self.text_tokens[token_start:token_end])
         voca = ' '.join(self.voca_tokens[token_start:token_end])
-        return text, voca
+        return text.strip(), voca.strip()
 
 def read_transcript(input_file):
     res = []

@@ -40,27 +40,35 @@ def download_script(data_dir, params_list):
         archive_file = os.path.basename(archive_url)
         print(f"unzip {archive_file} -d {id_}")
 
-ng_list = [
-    'リブリボックス',
-    'ボランティアについてなど',
-    'この録音はパブリックドメイン',
-    'ために録音されました',
-]
-
-def block_text_voca(text, voca):
-    if text.strip() and voca.strip():
-        x = text.replace(' ', '')
-        return any(y in x for y in ng_list)
-    return True
-
-def block_voca_decoded(voca, decoded):
-    """Check if more than 70% of decoded labels match with the original transcript
-    """
-    voca_len = len(voca.split())
-    decoded_len = len(decoded.split())
-    return not (voca_len and decoded_len and decoded_len / voca_len > 0.7)
-
 def combine_files(metadata_file, align_files, audio_files, segment_files):
+
+    from voice100.encoder import vocab2
+
+    ng_list = [
+        'リブリボックス',
+        'ボランティアについてなど',
+        'この録音はパブリックドメイン',
+        'ために録音されました',
+    ]
+
+    accepted_vocab = set(vocab2[1:] + ' . , ! ?'.split())
+
+    def block_text_voca(text, voca):
+        if text.strip() and voca.strip():
+            x = text.replace(' ', '')
+            return any(y in x for y in ng_list)
+        return True
+
+    def block_voca_decoded(voca, decoded):
+        """Check if more than 70% of decoded labels match with the original transcript
+        """
+        voca_len = len(voca.split())
+        decoded_len = len(decoded.split())
+        return not (voca_len and decoded_len and decoded_len / voca_len > 0.7)
+
+    def block_unknown_yomi(voca):
+        return not all(token in accepted_vocab for token in voca.split())
+
     os.makedirs(os.path.dirname(metadata_file), exist_ok=True)
     try:
         with open(metadata_file, 'wt') as metadata_f:
@@ -79,6 +87,8 @@ def combine_files(metadata_file, align_files, audio_files, segment_files):
                                 print(f'Blocking by NG word: {text}')
                             elif block_voca_decoded(voca, decoded):
                                 print(f'Blocking by too few match {text}')
+                            elif block_unknown_yomi(voca):
+                                print(f'Blocking by unknown yomi {voca}')
                             else:
                                 id_ = f'{args.dataset}-{idx:05d}'
                                 metadata_f.write(f'{id_}|{audio_file}|{start_frame}|{end_frame}|{text}|{voca}\n')
