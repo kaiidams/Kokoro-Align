@@ -131,4 +131,6 @@ $ python -m voice100.align --align --dataset gongitsune
 - [野分 (Nowaki)](https://librivox.org/nowaki-by-soseki-natsume/) 4:40:49
     [Online text](http://www.aozora.gr.jp/cards/000148/files/791_14959.html)
 - [ごん狐 (Gon gitsune)](https://librivox.org/gongitsune-by-nankichi-niimi/) 0:15:42
-    [Online text](https://librivox.org/gongitsune-by-nankichi-niimi/)
+    [Online text](http://www.aozora.gr.jp/cards/000121/files/628_14895.html)
+- [コーカサスの禿鷹 (Caucasus no Hagetaka)](https://librivox.org/caucasus-no-hagetaka-by-yoshio-toyoshima/) 0:13:04
+    [Online text](http://www.aozora.gr.jp/cards/000906/files/42633_22951.html)
