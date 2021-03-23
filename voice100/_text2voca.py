@@ -9,6 +9,8 @@ _tagger = MeCab.Tagger()
 _katakana = ''.join(chr(ch) for ch in range(ord('ァ'), ord('ン') + 1))
 _hiragana = ''.join(chr(ch) for ch in range(ord('ぁ'), ord('ん') + 1))
 _kata2hiratrans = str.maketrans(_katakana, _hiragana)
+_symbols_tokens = set(['・', '、', '。', '？', '！'])
+_no_yomi_tokens = set(['「', '」', '『', '』', '―', '（', '）', '［', '］', '[', ']', '　', '…'])
 
 def kata2hira(text):
     text = text.translate(_kata2hiratrans)
@@ -25,15 +27,19 @@ def getyomi(text) -> List[Tuple[str, str]]:
         word, yomi = parts[0], parts[1]
         if yomi:
             if yomi in ['Ｋ']:
-                yomi = 'k e i'
+                yomi = 'けい'
             else:
                 yomi = kata2hira(yomi)
             res.append((word, yomi))
         else:
-            if word in ['、', '。', '？', '！']:
+            if word in _symbols_tokens:
                 res.append((word, word))
-            else:
+            elif word == 'っ' or word == 'ッ':
+                res.append((word, 'っ'))
+            elif word in _no_yomi_tokens:
                 res.append((word, ''))
+            else:
+                res.append((word, word))
     return res
 
 def text2voca(text: str, ignore_error: bool = False) -> List[Tuple[str, str]]:
