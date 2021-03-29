@@ -16,29 +16,35 @@ def replace_ext(files, fromext, toext):
 def list_datasets(params_list):
     print("""List of supported dataset name:
 
-    ID                                 Time      Name""")
+    ID                                       Time      Name""")
     for params in params_list:
         id_ = params['id']
         totaltime = params['totaltime']
         name = params['name']
-        print(f"    {id_:35s}{totaltime:10s}{name:10s}")
+        print(f"    {id_:41s}{totaltime:10s}{name:10s}")
 
-def download_script(data_dir, params_list):
+def download_script(data_dir, dataset, params_list):
     print(f'cd {data_dir}')
     print()
-    print(f"curl -LO {MODEL_URL}")
-    print()
-    for x in params_list:
-        print(f"curl -LO {x['aozora_url']}")
-    print()
-    for x in params_list:
-        print(f"curl -LO {x['archive_url']}")
+    if not dataset:
+        print(f"curl -LO {MODEL_URL}")
+        print()
+    for params in params_list:
+        id_ = params['id']
+        if not dataset or id_ == dataset:
+            print(f"curl -LO {params['aozora_url']}")
     print()
     for params in params_list:
         id_ = params['id']
-        archive_url = params['archive_url']
-        archive_file = os.path.basename(archive_url)
-        print(f"unzip {archive_file} -d {id_}")
+        if not dataset or id_ == dataset:
+            print(f"curl -LO {params['archive_url']}")
+    print()
+    for params in params_list:
+        id_ = params['id']
+        if not dataset or id_ == dataset:
+            archive_url = params['archive_url']
+            archive_file = os.path.basename(archive_url)
+            print(f"unzip {archive_file} -d {id_}")
 
 def combine_files(dataset, align_files, audio_files, segment_files, metadata_file):
 
@@ -94,6 +100,17 @@ def combine_files(dataset, align_files, audio_files, segment_files, metadata_fil
                             start_frame = end_frame
     except:
         os.unlink(metadata_file)
+        raise
+
+def copy_index(params_list, index_file):
+    params_list = [
+        params for params in params_list if params['enabled']
+    ]
+    try:
+        with open(index_file, 'wt') as f:
+            json.dump(params_list, f)
+    except:
+        on.unlink(index_file)
         raise
 
 def process(args, params):
@@ -226,18 +243,6 @@ read audio files from `{audio_dir}/*.mp3'.""")
         print(f"Writing {metadata_file}")
         combine_files(args.dataset, align_files, audio_files, segment_files, metadata_file)
 
-    ##################################################
-    # Copy index
-    ##################################################
-
-    index_file = os.path.join(args.output_dir, f'index.json')
-    if os.path.exists(index_file):
-        print(f"Skip writing {index_file}")
-    else:
-        print(f"Writing {index_file}")
-        import shutil
-        shutil.copyfile('example.json', index_file)
-
     print('Done!')
 
 def main(args):
@@ -247,7 +252,10 @@ def main(args):
     if args.list:
         list_datasets(params_list)
     elif args.download:
-        download_script(args.data_dir, params_list)
+        download_script(args.data_dir, args.dataset, params_list)
+    elif args.copy_index:
+        index_file = os.path.join(args.output_dir, 'index.json')
+        copy_index(params_list, index_file)
     else:
         for params in params_list:
             if params['id'] == args.dataset:
@@ -259,8 +267,8 @@ if __name__ == '__main__':
                         help='disables CUDA training')
     parser.add_argument('--list', action='store_true', help='List supported dataset ID.')
     parser.add_argument('--download', action='store_true', help='Print download script.')
-    parser.add_argument('--dataset', default='gongitsune-by-nankichi-niimi', 
-        help='Dataset ID to process')
+    parser.add_argument('--copy-index', action='store_true', help='Copy index file.')
+    parser.add_argument('--dataset', help='Dataset ID to process')
     parser.add_argument('--data-dir', default='data', help='Data directory')
     parser.add_argument('--output-dir', default='output', help='Output directory')
     parser.add_argument('--model-dir', 

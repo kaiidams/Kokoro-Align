@@ -2,6 +2,7 @@
 
 from bs4 import BeautifulSoup
 import argparse
+import re
 
 PROLOGUE = """こちらはリブリボックスです。
 リブリボックスの録音はすべてパブリックドメインです。
@@ -17,6 +18,8 @@ EPILOGUE = """章
 おわり
 この録音はパブリックドメインです。
 """
+
+KANJI_NUMBER_RX = re.compile(r'[一二三四五六七八九十]{1,3}')
 
 class AozoraParser:
     def __init__(self):
@@ -37,7 +40,8 @@ class AozoraParser:
         else:
             with open(file_or_url, 'rt', encoding='shift_jis') as f:
                 self.soup = BeautifulSoup(f, 'html.parser')
-            if file_or_url.endswith('42633_22951.html'):
+            if (file_or_url.endswith('42633_22951.html')
+                or file_or_url.endswith('1197_33298.html')):
                 self.split_hack = True
 
     def _close_current_file(self):
@@ -80,7 +84,7 @@ class AozoraParser:
             if self.split_hack:
                 # caucasus-no-hagetaka-by-yoshio-toyoshima doesn't
                 # use <Hx> HTML tag, guess if `text' is for a title.
-                if node.strip() in ['一', '二', '三', '四', '五']:
+                if KANJI_NUMBER_RX.match(node.strip()):
                     self._write_line()
                     self._write_prologue()
                     self.text += node
