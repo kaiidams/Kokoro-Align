@@ -135,8 +135,8 @@ def train(args, device):
     loss_fn = loss_fn.to(device)
 
     ds = TextAudioDataset(
-        text_file=f'data/{args.dataset}_text.npz',
-        audio_file=f'data/{args.dataset}_audio.npz')
+        text_file=f'data/{args.dataset}-text.npz',
+        audio_file=f'data/{args.dataset}-audio.npz')
     train_ds, test_ds = torch.utils.data.random_split(ds, [len(ds) - len(ds) // 9, len(ds) // 9])
 
     train_dataloader = DataLoader(train_ds, batch_size=128, shuffle=True, num_workers=0, collate_fn=generate_batch)
