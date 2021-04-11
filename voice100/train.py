@@ -225,11 +225,42 @@ def predict(args, device):
                         txtfile.write(f'{audio_index+1}|{pred_decoded}\n')
                         audio_index += 1
 
+def export(args, device):
+
+    model = AudioToChar(**DEFAULT_PARAMS).to(device)
+    ckpt_path = os.path.join(args.model_dir, 'ctc-last.pth')
+    state = torch.load(ckpt_path, map_location=device)
+    model.load_state_dict(state['model'])
+    model.eval()
+    batch_size = 1
+    audio_len = 17
+    audio_dim = DEFAULT_PARAMS['n_mfcc']
+    audio_batch = torch.rand([audio_len, batch_size, audio_dim], dtype=torch.float32)
+    #audio_batch = pack_sequence(audio_batch, enforce_sorted=False)
+    with torch.no_grad():
+        outputs = model(audio_batch)
+        print(outputs.shape)
+        assert outputs.shape[2] == VOCAB2_SIZE
+        print(type(audio_batch))
+        output_file = 'voice100.onnx'
+        torch.onnx.export(
+            model,
+            (audio_batch,),
+            output_file,
+            export_params=True,
+            opset_version=13,
+            do_constant_folding=True,
+            input_names = ['input'],
+            output_names = ['output'],
+            dynamic_axes={'input' : {0: 'input_length'},
+                        'output' : {0: 'input_length'}})
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--train', action='store_true', help='Split audio and encode with WORLD vocoder.')
     parser.add_argument('--eval', action='store_true', help='Split audio and encode with WORLD vocoder.')
     parser.add_argument('--predict', action='store_true', help='Split audio and encode with WORLD vocoder.')
+    parser.add_argument('--export', action='store_true', help='Export to ONNX')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
@@ -250,5 +281,7 @@ if __name__ == '__main__':
         evaluate(args, device)
     elif args.predict:
         predict(args, device)
+    elif args.export:
+        export(args, device)
     else:
         raise ValueError('Unknown command')
