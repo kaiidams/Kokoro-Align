@@ -135,8 +135,8 @@ def train(args, device):
     loss_fn = loss_fn.to(device)
 
     ds = TextAudioDataset(
-        text_file=f'data/{args.dataset}_text.npz',
-        audio_file=f'data/{args.dataset}_audio.npz')
+        text_file=f'data/{args.dataset}-text.npz',
+        audio_file=f'data/{args.dataset}-audio.npz')
     train_ds, test_ds = torch.utils.data.random_split(ds, [len(ds) - len(ds) // 9, len(ds) // 9])
 
     train_dataloader = DataLoader(train_ds, batch_size=128, shuffle=True, num_workers=0, collate_fn=generate_batch)
@@ -170,11 +170,11 @@ def evaluate(args, device):
     model = AudioToChar(**DEFAULT_PARAMS).to(device)
     ckpt_path = os.path.join(args.model_dir, 'ctc-last.pth')
     state = torch.load(ckpt_path, map_location=device)
-    model.load_state_dict(state)
+    model.load_state_dict(state['model'])
 
     ds = TextAudioDataset(
-        text_file=f'data/{args.dataset}_text.npz',
-        audio_file=f'data/{args.dataset}_audio.npz')
+        text_file=f'data/{args.dataset}-text.npz',
+        audio_file=f'data/{args.dataset}-audio.npz')
     train_ds, test_ds = torch.utils.data.random_split(ds, [len(ds) - len(ds) // 9, len(ds) // 9])
     test_dataloader = DataLoader(test_ds, batch_size=128, shuffle=False, num_workers=0, collate_fn=generate_batch)
 
@@ -226,6 +226,18 @@ def predict(args, device):
                         audio_index += 1
 
 def export(args, device):
+
+    class AudioToChar(nn.Module):
+
+        def __init__(self, n_mfcc, hidden_dim, vocab_size):
+            super(AudioToChar, self).__init__()
+            self.hidden_dim = hidden_dim
+            self.lstm = nn.LSTM(n_mfcc, hidden_dim, num_layers=2, dropout=0.2, bidirectional=True)
+            self.dense = nn.Linear(hidden_dim * 2, vocab_size)
+
+        def forward(self, audio):
+            lstm_out, _ = self.lstm(audio)
+            return self.dense(lstm_out)
 
     model = AudioToChar(**DEFAULT_PARAMS).to(device)
     ckpt_path = os.path.join(args.model_dir, 'ctc-last.pth')

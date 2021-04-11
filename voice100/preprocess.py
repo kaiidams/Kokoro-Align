@@ -14,9 +14,10 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 CORPUSDATA_CSS10JA_PATH = 'data/japanese-single-speaker-speech-dataset'
+CORPUSDATA_COMMONVOICE_PATH = 'data/cv-corpus-6.1-2020-12-11/ja'
 
-TEXT_PATH = 'data/%s_text.npz'
-AUDIO_PATH = 'data/%s_audio.npz'
+TEXT_PATH = 'data/%s-text.npz'
+AUDIO_PATH = 'data/%s-audio.npz'
 
 def readcorpus_css10ja(file):
     from ._css10ja2voca import css10ja2voca
@@ -179,12 +180,61 @@ def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n
                 textf.write(encoded)
                 audiof.write(mfcc.numpy().astype(np.float32))
 
+def readcorpus_commonvoice(file):
+    from ._text2voca import text2voca
+    res = []
+    with open(file, 'rt') as f:
+        for line in f:
+            parts = line.rstrip('\r\n').split('\t')
+            _, path, sentence, _, _, _, _, _, _, _ = parts
+            voca = ' '.join(x for _, x in text2voca(sentence))
+            res.append((path, voca))
+    res = res[1:]
+    return res
+
+def preprocess_commonvoice(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_fft=512):
+
+    mfcc_transform = torchaudio.transforms.MFCC(
+        sample_rate=expected_sample_rate,
+        n_mfcc=n_mfcc,
+        melkwargs={'n_fft': n_fft, 'n_mels': n_mels, 'hop_length': n_fft // 2})
+
+    corpus = readcorpus_commonvoice(os.path.join(CORPUSDATA_COMMONVOICE_PATH, 'validated.tsv'))
+    with open_index_data_for_write(TEXT_PATH % (args.dataset,)) as textf:
+        with open_index_data_for_write(AUDIO_PATH % (args.dataset,)) as audiof:
+            for id_, monophone in tqdm(corpus):
+
+                if not monophone:
+                    print('Skipping: <empty>')
+                    continue
+                try:
+                    encoded = encode_text(monophone)
+                    assert encoded.dtype == np.int8
+                except:
+                    print(f'Skipping: {monophone}')
+                    continue
+                encoded = encode_text2(monophone)
+            
+                file = os.path.join(CORPUSDATA_COMMONVOICE_PATH, 'clips', id_)
+                assert '..' not in file # Just make sure it is under the current directory.
+                effects = [["rate", "22050"]]
+                y, sr = torchaudio.sox_effects.apply_effects_file(file, effects=effects)
+                assert len(y.shape) == 2 and y.shape[0] == 1
+                assert sr == expected_sample_rate
+                y = torch.mean(y, axis=0) # to mono
+                y = y / torch.max(torch.abs(y))
+                mfcc = mfcc_transform(y).T
+                textf.write(encoded)
+                audiof.write(mfcc.numpy().astype(np.float32))
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', default='css10ja', help='Dataset name')
     args = parser.parse_args()
 
-    if args.dataset != 'css10ja':
+    if args.dataset == 'cv_ja':
+        preprocess_commonvoice(args)
+    elif args.dataset != 'css10ja':
         split_audio(args)
     else:
         preprocess_css10ja(args)
