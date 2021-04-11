@@ -16,8 +16,8 @@ logging.basicConfig(level=logging.INFO)
 CORPUSDATA_CSS10JA_PATH = 'data/japanese-single-speaker-speech-dataset'
 CORPUSDATA_COMMONVOICE_PATH = 'data/cv-corpus-6.1-2020-12-11/ja'
 
-TEXT_PATH = 'data/%s_text.npz'
-AUDIO_PATH = 'data/%s_audio.npz'
+TEXT_PATH = 'data/%s-text.npz'
+AUDIO_PATH = 'data/%s-audio.npz'
 
 def readcorpus_css10ja(file):
     from ._css10ja2voca import css10ja2voca
@@ -199,7 +199,7 @@ def preprocess_commonvoice(args, expected_sample_rate=22050, n_mfcc=40, n_mels=4
         n_mfcc=n_mfcc,
         melkwargs={'n_fft': n_fft, 'n_mels': n_mels, 'hop_length': n_fft // 2})
 
-    corpus = readcorpus_commonvoice(os.path.join(CORPUSDATA_COMMONVOICE_PATH, 'train.tsv'))
+    corpus = readcorpus_commonvoice(os.path.join(CORPUSDATA_COMMONVOICE_PATH, 'validated.tsv'))
     with open_index_data_for_write(TEXT_PATH % (args.dataset,)) as textf:
         with open_index_data_for_write(AUDIO_PATH % (args.dataset,)) as audiof:
             for id_, monophone in tqdm(corpus):
@@ -222,6 +222,7 @@ def preprocess_commonvoice(args, expected_sample_rate=22050, n_mfcc=40, n_mels=4
                 assert len(y.shape) == 2 and y.shape[0] == 1
                 assert sr == expected_sample_rate
                 y = torch.mean(y, axis=0) # to mono
+                y = y / torch.max(torch.abs(y))
                 mfcc = mfcc_transform(y).T
                 textf.write(encoded)
                 audiof.write(mfcc.numpy().astype(np.float32))
