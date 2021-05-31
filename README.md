@@ -1,6 +1,6 @@
-# Voice100
+# Kokoro-Align
 
-Voice100 is a PyTorch speech-transcript alignment tool for LibriVox.
+Kokoro-Align is a PyTorch speech-transcript alignment tool for LibriVox.
 It splits audio files in silent positions and find CTC best path to
 align transcript texts with the audio files.
 
