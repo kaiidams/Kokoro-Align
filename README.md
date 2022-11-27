@@ -6,7 +6,7 @@ align transcript texts with the audio files.
 
 ## Objectives
 
-- Don't depend non-commercially licensed dataset
+- Not depend on non-commercially licensed datasets
 
 ## How to train CTC model
 
