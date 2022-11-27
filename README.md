@@ -2,7 +2,8 @@
 
 Kokoro-Align is a PyTorch speech-transcript alignment tool for LibriVox.
 It splits audio files in silent positions and find CTC best path to
-align transcript texts with the audio files.
+align transcript texts with the audio files. Kokoro-Align is used for
+[Kokoro Speech Dataset](https://github.com/kaiidams/Kokoro-Speech-Dataset).
 
 ## Objectives
 
@@ -25,7 +26,7 @@ the path to the transcript data.
 Run this to preprocess CSS10 corpus.
 
 ```
-$ python -m voice100.preprocess --dataset css10ja
+$ python -m kokoro_align.preprocess --dataset css10ja
 ```
 
 This generates two files.
@@ -37,7 +38,7 @@ and `data/css10ja_audio.npz` contains MFCC features.
 Run this to train the CTC model.
 
 ```
-$ python -m voice100.train --train --dataset css10ja --model-dir model/ctc
+$ python -m kokoro_align.train --train --dataset css10ja --model-dir model/ctc
 ```
 
 It achieve loss similar to this after 100 epochs.
@@ -53,21 +54,29 @@ loss: 0.254331  [ 5120/ 6062]
 Avg loss: 0.444975 
 ```
 
-## How to build dataset
+## How to build Kokoro-Speech-Dataset
 
-### Download data
-
-```
-$ mkdir data
-$ python -m voice100.aozora http://www.aozora.gr.jp/cards/000121/files/628_14895.html data/gongitsune.txt
-```
-
-python -m voice100.aozora https://www.aozora.gr.jp/cards/000148/files/773_14560.html data/kokoro.txt
+### Download audio data
 
 ```
+$ mkdir -p data
 $ (cd data && curl -LO http://archive.org/download/gongitsune_um_librivox/gongitsune_um_librivox_64kb_mp3.zip)
-$ unzip data/gongitsune_um_librivox_64kb_mp3.zip -d data/gongitsune_um_librivox_64kb_mp3
-$ ls data/gongitsune_um_librivox_64kb_mp3/*.mp3 | sort > data/gongitsune_audio_files.txt
+$ unzip data/gongitsune_um_librivox_64kb_mp3.zip -d data/gongitsune-by-nankichi-niimi
+$ ls data/gongitsune-by-nankichi-niimi/*.mp3 | sort > data/gongitsune_audio_files.txt
+$ sed -e 's/\.mp3$/.plain.txt/' data/gongitsune_audio_files.txt > data/gongitsune_original_text_files.txt
+```
+
+You can see a shell script to download data by running
+
+```
+$ python run_example.py --download --dataset gongitsune-by-nankichi-niimi 
+```
+
+### Download transcripts
+
+```
+$ mkdir -p data
+$ python -m kokoro_align.aozora http://www.aozora.gr.jp/cards/000121/files/628_14895.html $(cat data/gongitsune_original_text_files.txt)
 ```
 
 ### Fix text data manually
@@ -76,23 +85,26 @@ Often, the content of the text and the audio doesn't match even they say they re
 For example, the text contains meta data like copyrights, date of creation which are not included in the audio.
 The audio contains additional information about the audio.
 
-Modifying text files to reduce those mismatch, helps the better results. The previous process download
-the text as `data/gongitsune.txt`.
+Modifying text files to reduce those mismatches, helps the better results. The previous process downloads
+the text as `data/gongitsune-by-nankichi-niimi/*.plain.txt`.
 
 ### Preprocessing
 
-This uses MeCab Unidic Lite to get phonemes and save the result in `data/gongitsune_transcript.txt`.
-
-
+This uses MeCab Unidic to get phonemes and save the results.
 
 ```
-$ python -m voice100.transcript --dataset gongitsune
+$ python -m kokoro_align.transcript \
+    data/gongitsune-by-nankichi-niimi/gongitsune_01_niimi_64kb.plain.txt \
+    data/gongitsune-by-nankichi-niimi/gongitsune_01_niimi_64kb.voca.txt 
 ```
 
 This MFCC features of audio files in `data/gongitsune_audio.npz`.
 
 ```
-$ python -m voice100.preprocess --dataset gongitsune
+$ python -m kokoro_align.preprocess \
+    data/gongitsune-by-nankichi-niimi/gongitsune_01_niimi_64kb.mp3 \
+    data/gongitsune-by-nankichi-niimi/gongitsune_01_niimi_64kb.split.txt \
+    data/gongitsune-by-nankichi-niimi/gongitsune_01_niimi_64kb.mfcc.npz
 ```
 
 ### Estimate phonemes
@@ -100,18 +112,20 @@ $ python -m voice100.preprocess --dataset gongitsune
 This try to predict phonemes from MFCC.
 
 ```
-$ python -m voice100.train --predict --dataset gongitsune --model-dir model/ctc
+$ python -m kokoro_align.train --predict \
+--dataset data/gongitsune-by-nankichi-niimi \
+--model-dir model/ctc-20210319
 ```
 
 This predict the alignment of audio and text. It takes longer time than the other 
 process.
 
 ```
-$ python -m voice100.align --best_path --dataset gongitsune
+$ python -m kokoro_align.align --best_path --dataset gongitsune
 ```
 
 ```
-$ python -m voice100.align --align --dataset gongitsune  
+$ python -m kokoro_align.align --align --dataset gongitsune  
 ```
 
 ### Dataset

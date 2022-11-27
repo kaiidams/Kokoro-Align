@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 import os
 from tqdm import tqdm
-from voice100.encoder import encode_text2, decode_text2, merge_repeated2
+from kokoro_align.encoder import encode_text2, decode_text2, merge_repeated2
 
 def get_path(beams, score):
     s = []

@@ -56,6 +56,7 @@ def read_transcript(input_file):
     res = ' '.join(res)
     return encode_text2(res)
 
+
 def write_transcript(input_file, output_file):
 
     RUBY_RX = re.compile(r'｜[^《]*《([^》]*)》')
@@ -71,3 +72,15 @@ def write_transcript(input_file, output_file):
     except:
         os.unlink(output_file)
         raise
+
+
+def main_cli():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('input', type=str, help='Input file')
+    parser.add_argument('output', type=str, help='Output file')
+    args = parser.parse_args()
+    write_transcript(args.input, args.output)
+
+
+if __name__ == '__main__':
+    main_cli()
