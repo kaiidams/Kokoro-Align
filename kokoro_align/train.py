@@ -254,7 +254,7 @@ def export(args, device):
         print(outputs.shape)
         assert outputs.shape[2] == VOCAB2_SIZE
         print(type(audio_batch))
-        output_file = 'voice100.onnx'
+        output_file = 'kokoro_align.onnx'
         torch.onnx.export(
             model,
             (audio_batch,),

@@ -48,7 +48,7 @@ def download_script(data_dir, dataset, params_list):
 
 def combine_files(dataset, align_files, audio_files, segment_files, metadata_file):
 
-    from voice100.encoder import is_valid_text2
+    from kokoro_align.encoder import is_valid_text2
 
     ng_list = [
         'リブリボックス',
@@ -151,7 +151,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
         print(f'Skip converting Aozora HTML to text files')
     else:
         print(f'Converting Aozora HTML to text files')
-        from voice100.aozora import convert_aozora
+        from kokoro_align.aozora import convert_aozora
         convert_aozora(aozora_file, text_files)
 
     ##################################################
@@ -164,7 +164,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
             print(f'Skip writing {voca_file}')
         else:
             print(f'Writing {voca_file}')
-            from voice100.transcript import write_transcript
+            from kokoro_align.transcript import write_transcript
             write_transcript(text_file, voca_file)
 
     ##################################################
@@ -178,7 +178,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
             print(f'Skip converting {audio_file} to MFCC')
         else:
             print(f'Converting to {audio_file} MFCC')
-            from voice100.preprocess import split_audio
+            from kokoro_align.preprocess import split_audio
             split_audio(
                 audio_file, segment_file, mfcc_file
             )
@@ -194,7 +194,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
             print(f'Skip predicting phonemes of {mfcc_file}')
         else:
             print(f'Predicting phonemes of {mfcc_file}')
-            from voice100.train import predict
+            from kokoro_align.train import predict
             import torch
             use_cuda = not args.no_cuda and torch.cuda.is_available()
             device = torch.device("cuda" if use_cuda else "cpu")
@@ -216,7 +216,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
             print(f'Skip writing {best_path_file}')
         else:
             print(f'Writing {best_path_file}')
-            from voice100.align import best_path
+            from kokoro_align.align import best_path
             best_path(logits_file, voca_file, best_path_file)
 
     ##################################################
@@ -229,7 +229,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
             print(f'Skip writing {align_file}')
         else:
             print(f'Writing {align_file}')
-            from voice100.align import align
+            from kokoro_align.align import align
             align(best_path_file, mfcc_file, voca_file, align_file)
 
     ##################################################
