@@ -1,10 +1,10 @@
 # Copyright (C) 2021 Katsuya Iida. All rights reserved.
 
-import MeCab
+import fugashi
 from ._yomi2voca import yomi2voca
 from typing import List, Tuple
 
-_tagger = MeCab.Tagger()
+_tagger = fugashi.Tagger()
 
 _katakana = ''.join(chr(ch) for ch in range(ord('ァ'), ord('ン') + 1))
 _hiragana = ''.join(chr(ch) for ch in range(ord('ぁ'), ord('ん') + 1))

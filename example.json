@@ -140,16 +140,6 @@
         "sizes": ""
     },
     {
-        "id": "doko-e-by-hakucho-masamune",
-        "name": "何處へ (Doko e)",
-        "librivox_url": "https://librivox.org/doko-e-by-hakucho-masamune/",
-        "aozora_url": "http://www.gutenberg.org/ebooks/32941",
-        "archive_url": "http://www.archive.org/download//doko_e_1404_librivox/doko_e_1404_librivox_64kb_mp3.zip",
-        "totaltime": "02:28:10",
-        "enabled": false,
-        "sizes": ""
-    },
-    {
         "id": "kouyahijiri-by-kyoka-izumi",
         "name": "高野聖 (Kouyahijiri)",
         "librivox_url": "https://librivox.org/kouyahijiri-by-kyoka-izumi/",

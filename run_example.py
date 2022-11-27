@@ -10,8 +10,10 @@ from glob import glob
 
 MODEL_URL = "https://github.com/kaiidams/Kokoro-Align/releases/download/0.0.2/ctc-20210319.tar.gz"
 
+
 def replace_ext(files, fromext, toext):
     return [re.sub(f'\\.{fromext}$', f'.{toext}', file) for file in files]
+
 
 def list_datasets(params_list):
     print("""List of supported dataset name:
@@ -23,7 +25,10 @@ def list_datasets(params_list):
         name = params['name']
         print(f"    {id_:41s}{totaltime:10s}{name:10s}")
 
+
 def download_script(data_dir, dataset, params_list):
+    r"""Prints a shell script to download original audio files.
+    """
     print(f'cd {data_dir}')
     print()
     if not dataset:
@@ -45,6 +50,7 @@ def download_script(data_dir, dataset, params_list):
             archive_url = params['archive_url']
             archive_file = os.path.basename(archive_url)
             print(f"unzip {archive_file} -d {id_}")
+
 
 def combine_files(dataset, align_files, audio_files, segment_files, metadata_file):
 
@@ -102,6 +108,7 @@ def combine_files(dataset, align_files, audio_files, segment_files, metadata_fil
         os.unlink(metadata_file)
         raise
 
+
 def copy_index(params_list, index_file):
     params_list = [
         params for params in params_list if params['enabled']
@@ -112,6 +119,7 @@ def copy_index(params_list, index_file):
     except:
         os.unlink(index_file)
         raise
+
 
 def process(args, params):
 
@@ -245,9 +253,15 @@ read audio files from `{audio_dir}/*.mp3'.""")
 
     print('Done!')
 
+
 def main(args):
     with open('example.json') as f:
         params_list = json.load(f)
+
+    if args.dataset:
+        if not any(params['id'] == args.dataset for params in params_list):
+            print(f"Unknown dataset `{args.dataset}'")
+            sys.exit(1)
 
     if args.list:
         list_datasets(params_list)
@@ -261,12 +275,12 @@ def main(args):
             if params['id'] == args.dataset:
                 process(args, params)
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--no-cuda', action='store_true', default=False,
-                        help='disables CUDA training')
+
+def main_cli():
+    parser = argparse.ArgumentParser(description="Kokoro-Align is a speech-text aligner.")
+    parser.add_argument('--no-cuda', action='store_true', default=False, help='disables CUDA training')
     parser.add_argument('--list', action='store_true', help='List supported dataset ID.')
-    parser.add_argument('--download', action='store_true', help='Print download script.')
+    parser.add_argument('--download', action='store_true', help='Prints a shell script to download original audio files.')
     parser.add_argument('--copy-index', action='store_true', help='Copy index file.')
     parser.add_argument('--dataset', help='Dataset ID to process')
     parser.add_argument('--data-dir', default='data', help='Data directory')
@@ -276,3 +290,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch-size', type=int, default=128, help='Batch size')
     args = parser.parse_args()
     main(args)
+
+
+if __name__ == '__main__':
+    main_cli()

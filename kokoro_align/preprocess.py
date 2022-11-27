@@ -14,10 +14,10 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 CORPUSDATA_CSS10JA_PATH = 'data/japanese-single-speaker-speech-dataset'
-CORPUSDATA_COMMONVOICE_PATH = 'data/cv-corpus-6.1-2020-12-11/ja'
 
 TEXT_PATH = 'data/%s-text.npz'
 AUDIO_PATH = 'data/%s-audio.npz'
+
 
 def readcorpus_css10ja(file):
     from ._css10ja2voca import css10ja2voca
@@ -29,6 +29,7 @@ def readcorpus_css10ja(file):
             monophone = css10ja2voca(yomi)
             corpus.append((id_, monophone))
     return corpus
+
 
 class IndexDataArray:
     def __init__(self, file):
@@ -51,8 +52,10 @@ class IndexDataArray:
             data = np.concatenate(self.data, axis=0)
             np.savez(self.file, indices=indices, data=data)
 
+
 def open_index_data_for_write(file):
     return IndexDataArray(file)
+
 
 def get_silent_ranges(voiced):
     silent_to_voiced = np.where((~voiced[:-1]) & voiced[1:])[0] + 1 # The position where the voice starts
@@ -64,6 +67,7 @@ def get_silent_ranges(voiced):
         # Eliminate the succeeding silence
         voiced_to_silent = voiced_to_silent[:-1]
     return np.stack([voiced_to_silent, silent_to_voiced]).T
+
 
 def get_split_points(x, minimum_silent_frames, minimum_split_distance, maximum_split_distance, window_size, eps=1e-12):
 
@@ -115,6 +119,7 @@ def get_split_points(x, minimum_silent_frames, minimum_split_distance, maximum_s
 
     return silent_points
 
+
 def split_audio(
     audio_file, segment_file, audio_data_file,
     expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_fft=512
@@ -146,6 +151,7 @@ def split_audio(
                 mfcc = mfcc_transform(y[start:end]).T
                 data.write(mfcc.numpy().astype(np.float32))
                 segf.write(f'{end}\n')
+
 
 def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_fft=512):
 
@@ -180,61 +186,26 @@ def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n
                 textf.write(encoded)
                 audiof.write(mfcc.numpy().astype(np.float32))
 
-def readcorpus_commonvoice(file):
-    from ._text2voca import text2voca
-    res = []
-    with open(file, 'rt') as f:
-        for line in f:
-            parts = line.rstrip('\r\n').split('\t')
-            _, path, sentence, _, _, _, _, _, _, _ = parts
-            voca = ' '.join(x for _, x in text2voca(sentence))
-            res.append((path, voca))
-    res = res[1:]
-    return res
 
-def preprocess_commonvoice(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_fft=512):
-
-    mfcc_transform = torchaudio.transforms.MFCC(
-        sample_rate=expected_sample_rate,
-        n_mfcc=n_mfcc,
-        melkwargs={'n_fft': n_fft, 'n_mels': n_mels, 'hop_length': n_fft // 2})
-
-    corpus = readcorpus_commonvoice(os.path.join(CORPUSDATA_COMMONVOICE_PATH, 'validated.tsv'))
-    with open_index_data_for_write(TEXT_PATH % (args.dataset,)) as textf:
-        with open_index_data_for_write(AUDIO_PATH % (args.dataset,)) as audiof:
-            for id_, monophone in tqdm(corpus):
-
-                if not monophone:
-                    print('Skipping: <empty>')
-                    continue
-                try:
-                    encoded = encode_text(monophone)
-                    assert encoded.dtype == np.int8
-                except:
-                    print(f'Skipping: {monophone}')
-                    continue
-                encoded = encode_text2(monophone)
-            
-                file = os.path.join(CORPUSDATA_COMMONVOICE_PATH, 'clips', id_)
-                assert '..' not in file # Just make sure it is under the current directory.
-                effects = [["rate", "22050"]]
-                y, sr = torchaudio.sox_effects.apply_effects_file(file, effects=effects)
-                assert len(y.shape) == 2 and y.shape[0] == 1
-                assert sr == expected_sample_rate
-                y = torch.mean(y, axis=0) # to mono
-                y = y / torch.max(torch.abs(y))
-                mfcc = mfcc_transform(y).T
-                textf.write(encoded)
-                audiof.write(mfcc.numpy().astype(np.float32))
-
-if __name__ == '__main__':
+def main_cli_css10ja():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', default='css10ja', help='Dataset name')
     args = parser.parse_args()
 
-    if args.dataset == 'cv_ja':
-        preprocess_commonvoice(args)
-    elif args.dataset != 'css10ja':
-        split_audio(args)
-    else:
+    if args.dataset == 'css10ja':
         preprocess_css10ja(args)
+    else:
+        raise ValueError()
+
+
+def main_cli():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('audio', type=str, help='Input file')
+    parser.add_argument('segment', type=str, help='Segment file')
+    parser.add_argument('mfcc', type=str, help='MFCC file')
+    args = parser.parse_args()
+    split_audio(args.audio, args.segment, args.mfcc)
+
+
+if __name__ == '__main__':
+    main_cli()

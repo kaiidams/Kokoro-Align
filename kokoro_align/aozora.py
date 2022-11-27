@@ -135,5 +135,17 @@ class AozoraParser:
         if len(self.outfiles) != self.outfile_index:
             raise ValueError("Number of files doesn't match")
 
-def convert_aozora(aozora_file, text_files):
-    AozoraParser().process(aozora_file, text_files)
+def convert_aozora(aozora_file_or_url, text_files):
+    AozoraParser().process(aozora_file_or_url, text_files)
+
+
+def main_cli():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('file_or_url', type=str, help='Filename of URL of transcript HTML')
+    parser.add_argument('outputs', nargs='*', type=str, help='Output file')
+    args = parser.parse_args()
+    convert_aozora(args.file_or_url, args.outputs)
+
+
+if __name__ == '__main__':
+    main_cli()
