@@ -8,7 +8,7 @@ import sys
 import re
 from glob import glob
 
-MODEL_URL = "https://github.com/kaiidams/voice100/releases/download/0.0.2/ctc-20210319.tar.gz"
+MODEL_URL = "https://github.com/kaiidams/Kokoro-Align/releases/download/0.0.2/ctc-20210319.tar.gz"
 
 def replace_ext(files, fromext, toext):
     return [re.sub(f'\\.{fromext}$', f'.{toext}', file) for file in files]
@@ -110,7 +110,7 @@ def copy_index(params_list, index_file):
         with open(index_file, 'wt') as f:
             json.dump(params_list, f)
     except:
-        on.unlink(index_file)
+        os.unlink(index_file)
         raise
 
 def process(args, params):
