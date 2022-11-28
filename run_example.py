@@ -96,7 +96,7 @@ def combine_files(dataset, align_files, audio_files, segment_files, metadata_fil
                             if block_text_voca(text, voca):
                                 print(f'Blocking by NG word: {text}')
                             elif block_voca_decoded(voca, decoded):
-                                print(f'Blocking by too few match {text}')
+                                print(f'Blocking by too few match {voca} {decoded}')
                             elif block_unknown_yomi(voca):
                                 print(f'Blocking by unknown yomi {voca}')
                             else:
@@ -122,6 +122,10 @@ def copy_index(params_list, index_file):
 
 
 def process(args, params):
+
+    if not params['enabled']:
+        print(f"Skipping disabled {params['id']}.")
+        return
 
     ##################################################
     # Check if audio files are available locally
@@ -185,7 +189,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
         if os.path.exists(mfcc_file):
             print(f'Skip converting {audio_file} to MFCC')
         else:
-            print(f'Converting to {audio_file} MFCC')
+            print(f'Converting {audio_file} to MFCC')
             from kokoro_align.preprocess import split_audio
             split_audio(
                 audio_file, segment_file, mfcc_file
@@ -244,12 +248,12 @@ read audio files from `{audio_dir}/*.mp3'.""")
     # Write metadata
     ##################################################
 
-    metadata_file = os.path.join(args.output_dir, f'{args.dataset}.metadata.txt')
+    metadata_file = os.path.join(args.output_dir, f"{params['id']}.metadata.txt")
     if os.path.exists(metadata_file):
         print(f"Skip writing {metadata_file}")
     else:
         print(f"Writing {metadata_file}")
-        combine_files(args.dataset, align_files, audio_files, segment_files, metadata_file)
+        combine_files(params['id'], align_files, audio_files, segment_files, metadata_file)
 
     print('Done!')
 
@@ -272,7 +276,7 @@ def main(args):
         copy_index(params_list, index_file)
     else:
         for params in params_list:
-            if params['id'] == args.dataset:
+            if not args.dataset or params['id'] == args.dataset:
                 process(args, params)
 
 
