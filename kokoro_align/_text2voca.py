@@ -12,12 +12,46 @@ _kata2hiratrans = str.maketrans(_katakana, _hiragana)
 _symbols_tokens = set(['・', '、', '。', '？', '！'])
 _no_yomi_tokens = set(['「', '」', '『', '』', '―', '（', '）', '［', '］', '[', ']', '　', '…'])
 
+
 def kata2hira(text):
     text = text.translate(_kata2hiratrans)
     return text.replace('ヴ', 'う゛')
 
-def getyomi(text) -> List[Tuple[str, str]]:
-    parsed = _tagger.parse(text)
+
+def getyomi(text: str) -> List[Tuple[str, str]]:
+    return getyomi_unidic(text)
+
+
+def getyomi_unidic(text: str) -> List[Tuple[str, str]]:
+    parsed: str = _tagger.parse(text)
+    res = []
+    for line in parsed.split('\n'):
+        if line == 'EOS':
+            break
+        word, _, parts = line.partition('\t')
+        parts = parts.split(',')
+
+        yomi = parts[9] if len(parts) >= 10 else ''
+        if yomi:
+            if yomi in ['Ｋ']:
+                yomi = 'けい'
+            else:
+                yomi = kata2hira(yomi)
+            res.append((word, yomi))
+        else:
+            if word in _symbols_tokens:
+                res.append((word, word))
+            elif word == 'っ' or word == 'ッ':
+                res.append((word, 'っ'))
+            elif word in _no_yomi_tokens:
+                res.append((word, ''))
+            else:
+                res.append((word, word))
+    return res
+
+
+def getyomi_unidic_lite(text: str) -> List[Tuple[str, str]]:
+    parsed: str = _tagger.parse(text)
     res = []
     for line in parsed.split('\n'):
         if line == 'EOS':
@@ -41,6 +75,7 @@ def getyomi(text) -> List[Tuple[str, str]]:
             else:
                 res.append((word, word))
     return res
+
 
 def text2voca(text: str, ignore_error: bool = False) -> List[Tuple[str, str]]:
     """Convert text to phonemes.
