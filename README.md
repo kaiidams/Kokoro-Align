@@ -23,22 +23,22 @@ the path to the transcript data.
 
 ### Preprocessing
 
-Run this to preprocess CSS10 corpus.
+Run this to preprocess Kokoro corpus.
 
 ```
-$ python -m kokoro_align.preprocess --dataset css10ja
+$ python -m kokoro_align.prepare --dataset kokoro --data [directory]
 ```
 
 This generates two files.
-`data/css10ja_text.npz` contains phonemes
-and `data/css10ja_audio.npz` contains MFCC features.
+`data/kokoro-text.npz` contains phonemes
+and `data/kokoro-audio.npz` contains MFCC features.
 
 ### Run training
 
 Run this to train the CTC model.
 
 ```
-$ python -m kokoro_align.train --train --dataset css10ja --model-dir model/ctc
+$ python -m kokoro_align.train --train --dataset kokoro --model-dir model/ctc
 ```
 
 It achieve loss similar to this after 100 epochs.

@@ -2,9 +2,9 @@
 
 import numpy as np
 
-vocab = list(' .,?:Nabcdefghijkmnopqrstuwyz')
+vocab = list(' .,!?:Nabcdefghijkmnopqrstuwyz')
 v2i = {v: i for i, v in enumerate(vocab)}
-assert len(v2i) == 29
+assert len(v2i) == 30
 
 def encode_text(text):
     return np.array([v2i[ch] for ch in text], dtype=np.int8)
