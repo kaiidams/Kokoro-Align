@@ -115,7 +115,7 @@ def copy_index(params_list, index_file):
     ]
     try:
         with open(index_file, 'wt') as f:
-            json.dump(params_list, f)
+            json.dump(params_list, f, indent=4, ensure_ascii=False)
     except:
         os.unlink(index_file)
         raise
