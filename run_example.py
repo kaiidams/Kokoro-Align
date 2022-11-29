@@ -186,7 +186,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
     mfcc_files = replace_ext(audio_files, 'mp3', 'mfcc.npz')
     segment_files = replace_ext(audio_files, 'mp3', 'split.txt')
     for audio_file, segment_file, mfcc_file in zip(audio_files, segment_files, mfcc_files):
-        if os.path.exists(mfcc_file):
+        if os.path.exists(segment_file) and os.path.exists(mfcc_file):
             print(f'Skip converting {audio_file} to MFCC')
         else:
             print(f'Converting {audio_file} to MFCC')
@@ -202,7 +202,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
     logits_files = replace_ext(audio_files, 'mp3', 'logits.npz')
     greed_files = replace_ext(audio_files, 'mp3', 'greed.txt')
     for mfcc_file, logits_file, greed_file in zip(mfcc_files, logits_files, greed_files): 
-        if os.path.exists(logits_file):
+        if os.path.exists(logits_file) and os.path.exists(greed_file):
             print(f'Skip predicting phonemes of {mfcc_file}')
         else:
             print(f'Predicting phonemes of {mfcc_file}')
