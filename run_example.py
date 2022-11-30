@@ -95,10 +95,12 @@ def combine_files(dataset, align_files, audio_files, segment_files, metadata_fil
                             end_frame, = segment_parts
                             if block_text_voca(text, voca):
                                 print(f'Blocking by NG word: {text}')
-                            elif block_voca_decoded(voca, decoded):
-                                print(f'Blocking by too few match {voca} {decoded}')
                             elif block_unknown_yomi(voca):
                                 print(f'Blocking by unknown yomi {voca}')
+                            elif block_voca_decoded(voca, decoded):
+                                print('Blocking by too few match')
+                                print(f'voca:    {voca}')
+                                print(f'decoded: {decoded}')
                             else:
                                 id_ = f'{dataset}-{idx:05d}'
                                 metadata_f.write(f'{id_}|{audio_file}|{start_frame}|{end_frame}|{text}|{voca}\n')
@@ -290,7 +292,7 @@ def main_cli():
     parser.add_argument('--data-dir', default='data', help='Data directory')
     parser.add_argument('--output-dir', default='output', help='Output directory')
     parser.add_argument('--model-dir', 
-        default='./model/ctc-20210319', help='Directory to load checkpoints.')
+        default='./model/ctc-20221130', help='Directory to load checkpoints.')
     parser.add_argument('--batch-size', type=int, default=128, help='Batch size')
     args = parser.parse_args()
     main(args)

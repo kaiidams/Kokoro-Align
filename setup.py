@@ -17,5 +17,5 @@ align transcript texts with the audio files.""",
         'torchaudio',
         'beautifulsoup4',
         'fugashi',
-        'unidic'
+        'unidic-lite'
     ])

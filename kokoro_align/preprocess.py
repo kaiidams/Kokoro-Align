@@ -7,9 +7,6 @@ import argparse
 import torch
 import torchaudio
 
-from .encoder import encode_text
-from .encoder import encode_text2
-
 import logging
 logging.basicConfig(level=logging.INFO)
 
