@@ -100,6 +100,7 @@ def train_loop(epoch, dataloader, model, device, loss_fn, optimizer):
     pbar = tqdm(dataloader, desc=f'train epoch {epoch}')
     for batch_idx, (text, audio, text_len) in enumerate(pbar):
         text, audio, text_len = text.to(device), audio.to(device), text_len.to(device)
+        audio.data.mul_((torch.rand_like(audio.data) > 0.2).to(audio.data.dtype)) # dropout
         logits, probs_len = model(audio)
         log_probs = nn.functional.log_softmax(logits, dim=-1)
         text = text.transpose(0, 1)
