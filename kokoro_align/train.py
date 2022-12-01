@@ -56,7 +56,7 @@ class AudioToChar(nn.Module):
     def __init__(self, n_mfcc, hidden_dim, vocab_size):
         super(AudioToChar, self).__init__()
         self.hidden_dim = hidden_dim
-        self.lstm = nn.LSTM(n_mfcc, hidden_dim, num_layers=2, dropout=0.2, bidirectional=True)
+        self.lstm = nn.LSTM(n_mfcc, hidden_dim, num_layers=2, dropout=0.5, bidirectional=True)
         self.dense = nn.Linear(hidden_dim * 2, vocab_size)
 
     def forward(self, audio):
@@ -100,7 +100,7 @@ def train_loop(epoch, dataloader, model, device, loss_fn, optimizer):
     pbar = tqdm(dataloader, desc=f'train epoch {epoch}')
     for batch_idx, (text, audio, text_len) in enumerate(pbar):
         text, audio, text_len = text.to(device), audio.to(device), text_len.to(device)
-        audio.data.mul_((torch.rand_like(audio.data) > 0.2).to(audio.data.dtype)) # dropout
+        audio.data.mul_((torch.rand_like(audio.data) > 0.5).to(audio.data.dtype)) # dropout
         logits, probs_len = model(audio)
         log_probs = nn.functional.log_softmax(logits, dim=-1)
         text = text.transpose(0, 1)
@@ -235,7 +235,7 @@ def export(args, device):
         def __init__(self, n_mfcc, hidden_dim, vocab_size):
             super(AudioToChar, self).__init__()
             self.hidden_dim = hidden_dim
-            self.lstm = nn.LSTM(n_mfcc, hidden_dim, num_layers=2, dropout=0.2, bidirectional=True)
+            self.lstm = nn.LSTM(n_mfcc, hidden_dim, num_layers=2, dropout=0.5, bidirectional=True)
             self.dense = nn.Linear(hidden_dim * 2, vocab_size)
 
         def forward(self, audio):
