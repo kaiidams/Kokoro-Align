@@ -8,7 +8,6 @@ import torch
 import torchaudio
 
 from .encoder import encode_text
-from .encoder import encode_text2
 from .preprocess import open_index_data_for_write
 
 import logging
@@ -73,7 +72,7 @@ def prepare_dataset(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_ff
                 except:
                     print(f'Skipping: {monophone}')
                     continue
-                encoded = encode_text2(monophone)
+                encoded = encode_text(monophone)
             
                 y, sr = torchaudio.load(clipfile)
                 assert len(y.shape) == 2 and y.shape[0] == 1

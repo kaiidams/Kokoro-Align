@@ -3,7 +3,7 @@ import os
 import numpy as np
 import argparse
 from tqdm import tqdm
-from .encoder import decode_text2
+from .encoder import decode_text
 
 def test_text_data(args):
     file = f'data/{args.dataset}_text.npz'
@@ -15,7 +15,7 @@ def test_text_data(args):
         text_start = text_index[index - 1] if index else 0
         text_end = text_index[index]
         text = text_data[text_start:text_end]
-        text = decode_text2(text)
+        text = decode_text(text)
         print(text)
 
 def test_audio_data(args):

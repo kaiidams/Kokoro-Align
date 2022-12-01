@@ -54,7 +54,7 @@ def download_script(data_dir, dataset, params_list):
 
 def combine_files(dataset, align_files, audio_files, segment_files, metadata_file):
 
-    from kokoro_align.encoder import is_valid_text2
+    from kokoro_align.encoder import is_valid_text, encode_text
 
     ng_list = [
         'リブリボックス',
@@ -72,12 +72,12 @@ def combine_files(dataset, align_files, audio_files, segment_files, metadata_fil
     def block_voca_decoded(voca, decoded):
         """Check if more than 70% of decoded labels match with the original transcript
         """
-        voca_len = len(voca.split())
+        voca_len = len(encode_text(voca))
         decoded_len = len(decoded.split())
         return not (voca_len and decoded_len and decoded_len / voca_len > 0.7)
 
     def block_unknown_yomi(voca):
-        return not is_valid_text2(voca)
+        return not is_valid_text(voca)
 
     os.makedirs(os.path.dirname(metadata_file), exist_ok=True)
     try:

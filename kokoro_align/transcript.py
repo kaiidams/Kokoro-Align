@@ -4,7 +4,7 @@ import re
 import os
 import argparse
 from ._text2voca import text2voca
-from .encoder import encode_text2
+from .encoder import encode_text
 
 class VocaAligner:
     def __init__(self, input_file):
@@ -20,7 +20,7 @@ class VocaAligner:
             for line in f:
                 parts = line.rstrip('\r\n').split('|')
                 text, voca = parts
-                encoded = encode_text2(voca)
+                encoded = encode_text(voca)
                 encoded_len = len(encoded)
 
                 self.text_tokens.append(text)
@@ -54,7 +54,7 @@ def read_transcript(input_file):
             parts = line.rstrip('\r\n').split('|')
             res.append(parts[1])
     res = ' '.join(res)
-    return encode_text2(res)
+    return encode_text(res)
 
 
 def write_transcript(input_file, output_file):

@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 import os
 from tqdm import tqdm
-from kokoro_align.encoder import encode_text2, decode_text2, merge_repeated2
+from kokoro_align.encoder import encode_text, decode_text, merge_repeated
 
 def get_path(beams, score):
     s = []
@@ -154,7 +154,7 @@ def align(best_path_file, mfcc_file, voca_file, align_file):
                 labels = best_labels[audio_start:audio_end]
                 scores = best_scores[audio_start:audio_end]
 
-                decoded = merge_repeated2(decode_text2(labels))
+                decoded = merge_repeated(decode_text(labels))
                 non_blanks = np.sum(labels != 0).item()
                 non_blanks_score = np.sum(scores[labels != 0]).item()
                 all_score = np.sum(scores).item()

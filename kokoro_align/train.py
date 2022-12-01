@@ -8,15 +8,15 @@ from torch import nn
 from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pack_sequence, pad_sequence, pad_packed_sequence
-from .encoder import decode_text2, merge_repeated2, VOCAB2_SIZE
+from .encoder import decode_text, merge_repeated, VOCAB_SIZE
 
 BLANK_IDX = 0
-assert VOCAB2_SIZE == 42
+assert VOCAB_SIZE == 42
 
 DEFAULT_PARAMS = dict(
     n_mfcc=40,
     hidden_dim=128,
-    vocab_size=VOCAB2_SIZE
+    vocab_size=VOCAB_SIZE
 )
 
 class IndexArrayDataset(Dataset):
@@ -186,9 +186,9 @@ def evaluate(args, device):
         preds = torch.argmax(logits, axis=-1).T
         preds_len = logits_len
         for i in range(preds.shape[0]):
-            pred_decoded = decode_text2(preds[i, :preds_len[i]])
-            pred_decoded = merge_repeated2(pred_decoded)
-            target_decoded = decode_text2(text[:text_len[i], i])
+            pred_decoded = decode_text(preds[i, :preds_len[i]])
+            pred_decoded = merge_repeated(pred_decoded)
+            target_decoded = decode_text(text[:text_len[i], i])
             print('----')
             print(target_decoded)
             print(pred_decoded)
@@ -218,8 +218,8 @@ def predict(args, device):
                     # preds: [batch_size, audio_len]
                     preds_len = logits_len
                     for j in range(preds.shape[0]):
-                        pred_decoded = decode_text2(preds[j, :preds_len[j]])
-                        pred_decoded = merge_repeated2(pred_decoded)
+                        pred_decoded = decode_text(preds[j, :preds_len[j]])
+                        pred_decoded = merge_repeated(pred_decoded)
                         x = logits[:preds_len[j], j, :].numpy().astype(np.float32)
                         file.write(x)
                         txtfile.write(f'{audio_index+1}|{pred_decoded}\n')
