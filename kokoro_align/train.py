@@ -11,13 +11,14 @@ from torch.nn.utils.rnn import pack_sequence, pad_sequence, pad_packed_sequence
 from .encoder import decode_text, merge_repeated, VOCAB_SIZE
 
 BLANK_IDX = 0
-assert VOCAB_SIZE == 42
+assert VOCAB_SIZE == 39
 
 DEFAULT_PARAMS = dict(
     n_mfcc=40,
     hidden_dim=128,
     vocab_size=VOCAB_SIZE
 )
+
 
 class IndexArrayDataset(Dataset):
 
@@ -34,6 +35,7 @@ class IndexArrayDataset(Dataset):
         end = self.indices[idx]
         return torch.from_numpy(self.data[start:end])
 
+
 class TextAudioDataset(Dataset):
     def __init__(self, text_file, audio_file):
         self.text_dataset = IndexArrayDataset(text_file)
@@ -48,6 +50,7 @@ class TextAudioDataset(Dataset):
         audio = self.audio_dataset[idx]
         return text, audio
 
+
 class AudioToChar(nn.Module):
 
     def __init__(self, n_mfcc, hidden_dim, vocab_size):
@@ -60,6 +63,7 @@ class AudioToChar(nn.Module):
         lstm_out, _ = self.lstm(audio)
         lstm_out, lstm_out_len = pad_packed_sequence(lstm_out)
         return self.dense(lstm_out), lstm_out_len
+
 
 def generate_batch(data_batch):
     text_batch, audio_batch = [], []
@@ -84,45 +88,44 @@ def generate_batch(data_batch):
         audio_batch = pack_sequence(audio_batch, enforce_sorted=False)
         return text_batch, audio_batch, text_len
 
+
 def generate_batch_audio(data_batch):
     audio_batch = data_batch
     audio_batch = pack_sequence(audio_batch, enforce_sorted=False)
     return audio_batch
 
-def train_loop(dataloader, model, device, loss_fn, optimizer):
-    size = len(dataloader.dataset)
+
+def train_loop(epoch, dataloader, model, device, loss_fn, optimizer):
     model.train()
-    for batch, (text, audio, text_len) in enumerate(dataloader):
+    pbar = tqdm(dataloader, desc=f'train epoch {epoch}')
+    for batch_idx, (text, audio, text_len) in enumerate(pbar):
         text, audio, text_len = text.to(device), audio.to(device), text_len.to(device)
         logits, probs_len = model(audio)
         log_probs = nn.functional.log_softmax(logits, dim=-1)
         text = text.transpose(0, 1)
-        #print(logits.shape, text.shape, audio_lengths.shape, text_lengths.shape)
         loss = loss_fn(log_probs, text, probs_len, text_len)
-
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        pbar.set_postfix({'loss': loss.item()})
 
-        if batch % 10 == 0:
-            loss, current = loss.item(), batch * len(text)
-            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
 
-def test_loop(dataloader, model, device, loss_fn, optimizer):
-    size = len(dataloader.dataset)
+def test_loop(epoch, dataloader, model, device, loss_fn):
     test_loss = 0
+    total = 0
     model.eval()
-    for batch, (text, audio, text_len) in enumerate(dataloader):
-        text, audio, text_len = text.to(device), audio.to(device), text_len.to(device)
-        logits, probs_len = model(audio)
-        log_probs = nn.functional.log_softmax(logits, dim=-1)
-        text = text.transpose(0, 1)
-        #print(logits.shape, text.shape, audio_lengths.shape, text_lengths.shape)
-        loss = loss_fn(log_probs, text, probs_len, text_len)
+    pbar = tqdm(dataloader, desc=f'train epoch {epoch}')
+    for batch_idx, (text, audio, text_len) in enumerate(pbar):
+        with torch.no_grad():
+            text, audio, text_len = text.to(device), audio.to(device), text_len.to(device)
+            logits, probs_len = model(audio)
+            log_probs = nn.functional.log_softmax(logits, dim=-1)
+            text = text.transpose(0, 1)
+            loss = loss_fn(log_probs, text, probs_len, text_len)
+            test_loss += loss.item() * text.shape[0]
+            total += text.shape[0]
 
-        test_loss += loss.item() * text.shape[0]
-
-    test_loss /= size
+    test_loss /= total
     print(f"Avg loss: {test_loss:>8f} \n")
     return test_loss
 
@@ -147,16 +150,14 @@ def train(args, device):
         state = torch.load(ckpt_path, map_location=device)
         model.load_state_dict(state['model'])
         optimizer.load_state_dict(state['optimizer'])
-        epoch = state['epoch']
+        epoch = state['epoch'] + 1
         #loss = checkpoint['loss']
     else:
-        epoch = 0
+        epoch = 1
 
-    epochs = 100
-    for t in range(epoch, epochs):
-        print(f"Epoch {t+1}\n-------------------------------")
-        train_loop(train_dataloader, model, device, loss_fn, optimizer)
-        test_loss = test_loop(test_dataloader, model, device, loss_fn, optimizer)
+    for epoch in range(epoch, args.epochs):
+        train_loop(epoch, train_dataloader, model, device, loss_fn, optimizer)
+        test_loss = test_loop(epoch, test_dataloader, model, device, loss_fn)
         os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
         torch.save({
             'epoch': epoch + 1,
@@ -225,6 +226,7 @@ def predict(args, device):
                         txtfile.write(f'{audio_index+1}|{pred_decoded}\n')
                         audio_index += 1
 
+
 def export(args, device):
 
     class AudioToChar(nn.Module):
@@ -252,7 +254,7 @@ def export(args, device):
     with torch.no_grad():
         outputs = model(audio_batch)
         print(outputs.shape)
-        assert outputs.shape[2] == VOCAB2_SIZE
+        assert outputs.shape[2] == VOCAB_SIZE
         print(type(audio_batch))
         output_file = 'kokoro_align.onnx'
         torch.onnx.export(
@@ -279,6 +281,7 @@ if __name__ == '__main__':
                         help='random seed (default: 1)')
     parser.add_argument('--dataset', default='css10ja', help='Analyze F0 of sampled data.')
     parser.add_argument('--model-dir', help='Directory to save checkpoints.')
+    parser.add_argument('--epochs', type=int, default=80, help='Number of epochs')
     parser.add_argument('--batch-size', type=int, default=128, help='Batch size')
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()

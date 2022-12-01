@@ -26,7 +26,9 @@ the path to the transcript data.
 Run this to preprocess Kokoro corpus.
 
 ```
-$ python -m kokoro_align.prepare --dataset kokoro --data [directory]
+$ python -m kokoro_align.prepare \
+    --dataset kokoro \
+    --data data/kokoro-speech-v1_2
 ```
 
 This generates two files.
@@ -38,7 +40,8 @@ and `data/kokoro-audio.npz` contains MFCC features.
 Run this to train the CTC model.
 
 ```
-$ python -m kokoro_align.train --train --dataset kokoro --model-dir model/ctc
+$ python -m kokoro_align.train \
+    --train --dataset kokoro --model-dir model/ctc
 ```
 
 It achieve loss similar to this after 100 epochs.
