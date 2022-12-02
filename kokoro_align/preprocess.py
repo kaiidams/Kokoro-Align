@@ -7,28 +7,8 @@ import argparse
 import torch
 import torchaudio
 
-from .encoder import encode_text
-from .encoder import encode_text2
-
 import logging
 logging.basicConfig(level=logging.INFO)
-
-CORPUSDATA_CSS10JA_PATH = 'data/japanese-single-speaker-speech-dataset'
-
-TEXT_PATH = 'data/%s-text.npz'
-AUDIO_PATH = 'data/%s-audio.npz'
-
-
-def readcorpus_css10ja(file):
-    from ._css10ja2voca import css10ja2voca
-    corpus = []
-    with open(file) as f:
-        for line in f:
-            parts = line.rstrip('\r\n').split('|')
-            id_, _, yomi, _ = parts
-            monophone = css10ja2voca(yomi)
-            corpus.append((id_, monophone))
-    return corpus
 
 
 class IndexDataArray:
@@ -151,51 +131,6 @@ def split_audio(
                 mfcc = mfcc_transform(y[start:end]).T
                 data.write(mfcc.numpy().astype(np.float32))
                 segf.write(f'{end}\n')
-
-
-def preprocess_css10ja(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_fft=512):
-
-    mfcc_transform = torchaudio.transforms.MFCC(
-        sample_rate=expected_sample_rate,
-        n_mfcc=n_mfcc,
-        melkwargs={'n_fft': n_fft, 'n_mels': n_mels, 'hop_length': n_fft // 2})
-
-    corpus = readcorpus_css10ja(os.path.join(CORPUSDATA_CSS10JA_PATH, 'transcript.txt'))
-    with open_index_data_for_write(TEXT_PATH % (args.dataset,)) as textf:
-        with open_index_data_for_write(AUDIO_PATH % (args.dataset,)) as audiof:
-            for id_, monophone in tqdm(corpus):
-
-                if not monophone:
-                    print('Skipping: <empty>')
-                    continue
-                try:
-                    encoded = encode_text(monophone)
-                    assert encoded.dtype == np.int8
-                except:
-                    print(f'Skipping: {monophone}')
-                    continue
-                encoded = encode_text2(monophone)
-            
-                file = os.path.join(CORPUSDATA_CSS10JA_PATH, id_)
-                assert '..' not in file # Just make sure it is under the current directory.
-                y, sr = torchaudio.load(file)
-                assert len(y.shape) == 2 and y.shape[0] == 1
-                assert sr == expected_sample_rate
-                y = torch.mean(y, axis=0) # to mono
-                mfcc = mfcc_transform(y).T
-                textf.write(encoded)
-                audiof.write(mfcc.numpy().astype(np.float32))
-
-
-def main_cli_css10ja():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', default='css10ja', help='Dataset name')
-    args = parser.parse_args()
-
-    if args.dataset == 'css10ja':
-        preprocess_css10ja(args)
-    else:
-        raise ValueError()
 
 
 def main_cli():

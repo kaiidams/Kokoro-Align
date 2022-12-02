@@ -21,10 +21,10 @@ def kata2hira(text: str) -> str:
 
 
 def getyomi(text: str) -> List[Tuple[str, str]]:
-    return getyomi_fugashi(text)
+    return getyomi_unidic_lite(text)
 
 
-def getyomi_fugashi(text: str) -> List[Tuple[str, str]]:
+def getyomi_unidic(text: str) -> List[Tuple[str, str]]:
     parsed: str = _tagger.parse(text)
     res = []
     for line in parsed.split('\n'):
@@ -50,7 +50,7 @@ def getyomi_fugashi(text: str) -> List[Tuple[str, str]]:
     return res
 
 
-def getyomi_mecab(text: str) -> List[Tuple[str, str]]:
+def getyomi_unidic_lite(text: str) -> List[Tuple[str, str]]:
     parsed: str = _tagger.parse(text)
     res = []
     for line in parsed.split('\n'):
