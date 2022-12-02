@@ -292,7 +292,7 @@ def main_cli():
     parser.add_argument('--data-dir', default='data', help='Data directory')
     parser.add_argument('--output-dir', default='output', help='Output directory')
     parser.add_argument('--model-dir', 
-        default='./model/ctc-20221130', help='Directory to load checkpoints.')
+        default='./model/ctc-20221201', help='Directory to load checkpoints.')
     parser.add_argument('--batch-size', type=int, default=128, help='Batch size')
     args = parser.parse_args()
     main(args)
