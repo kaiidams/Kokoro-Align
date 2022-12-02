@@ -156,7 +156,7 @@ def train(args, device):
     else:
         epoch = 1
 
-    for epoch in range(epoch, args.epochs):
+    for epoch in range(epoch, args.epochs + 1):
         train_loop(epoch, train_dataloader, model, device, loss_fn, optimizer)
         test_loss = test_loop(epoch, test_dataloader, model, device, loss_fn)
         os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
