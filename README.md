@@ -16,10 +16,10 @@ the pretrained model checkpoint and skip this process.
 
 ### Download data
 
-Get [CSS10 Japanese corpus](https://github.com/Kyubyong/css10) and extract
+Get [Kokoro Speech Dataset](https://github.com/kaiidams/Kokoro-Speech-Dataset) and extract
 the data under `./data`.
-`./data/japanese-single-speaker-speech-dataset/transcript.txt` should be
-the path to the transcript data.
+`./data/kokoro-speech-v1_2-small/metadata.csv` should be
+the path of the transcript data.
 
 ### Preprocessing
 
@@ -28,7 +28,7 @@ Run this to preprocess Kokoro corpus.
 ```
 $ python -m kokoro_align.prepare \
     --dataset kokoro \
-    --data data/kokoro-speech-v1_2
+    --data data/kokoro-speech-v1_2-small
 ```
 
 This generates two files.
@@ -47,17 +47,15 @@ $ python -m kokoro_align.train \
 It achieve loss similar to this after 100 epochs.
 
 ```
-Epoch 100
--------------------------------
-loss: 0.191120  [    0/ 6062]
-loss: 0.203137  [ 1280/ 6062]
-loss: 0.231901  [ 2560/ 6062]
-loss: 0.236112  [ 3840/ 6062]
-loss: 0.254331  [ 5120/ 6062]
-Avg loss: 0.444975 
+train epoch 199: 100% 65/65 [00:20<00:00,  3.16it/s, loss=0.156]
+train epoch 199: 100% 8/8 [00:00<00:00, 18.63it/s]
+Avg loss: 0.306335
 ```
 
 ## How to build Kokoro-Speech-Dataset
+
+You can use the model trained in the above process or use
+[the pretraine model](https://github.com/kaiidams/Kokoro-Align/releases/download/v0.2/ctc-20221201.tar.gz)
 
 ### Download audio data
 
@@ -75,61 +73,22 @@ You can see a shell script to download data by running
 $ python run_example.py --download --dataset gongitsune-by-nankichi-niimi 
 ```
 
-### Download transcripts
+### Make metadata
 
 ```
-$ mkdir -p data
-$ python -m kokoro_align.aozora http://www.aozora.gr.jp/cards/000121/files/628_14895.html $(cat data/gongitsune_original_text_files.txt)
+$ python run_example.py
 ```
 
-### Fix text data manually
+### Copy index
 
-Often, the content of the text and the audio doesn't match even they say they read the text.
-For example, the text contains meta data like copyrights, date of creation which are not included in the audio.
-The audio contains additional information about the audio.
-
-Modifying text files to reduce those mismatches, helps the better results. The previous process downloads
-the text as `data/gongitsune-by-nankichi-niimi/*.plain.txt`.
-
-### Preprocessing
-
-This uses MeCab Unidic to get phonemes and save the results.
+You can use output directory to make datasets with 
+[Kokoro Speech Dataset](https://github.com/kaiidams/Kokoro-Speech-Dataset)
+using `output` direcotry.
 
 ```
-$ python -m kokoro_align.transcript \
-    data/gongitsune-by-nankichi-niimi/gongitsune_01_niimi_64kb.plain.txt \
-    data/gongitsune-by-nankichi-niimi/gongitsune_01_niimi_64kb.voca.txt 
+$ python run_example.py --copy-index
 ```
 
-This MFCC features of audio files in `data/gongitsune_audio.npz`.
-
-```
-$ python -m kokoro_align.preprocess \
-    data/gongitsune-by-nankichi-niimi/gongitsune_01_niimi_64kb.mp3 \
-    data/gongitsune-by-nankichi-niimi/gongitsune_01_niimi_64kb.split.txt \
-    data/gongitsune-by-nankichi-niimi/gongitsune_01_niimi_64kb.mfcc.npz
-```
-
-### Estimate phonemes
-
-This try to predict phonemes from MFCC.
-
-```
-$ python -m kokoro_align.train --predict \
---dataset data/gongitsune-by-nankichi-niimi \
---model-dir model/ctc-20210319
-```
-
-This predict the alignment of audio and text. It takes longer time than the other 
-process.
-
-```
-$ python -m kokoro_align.align --best_path --dataset gongitsune
-```
-
-```
-$ python -m kokoro_align.align --align --dataset gongitsune  
-```
 
 ### Dataset
 
