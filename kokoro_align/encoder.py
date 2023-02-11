@@ -11,12 +11,15 @@ accepted_vocab = set(vocab[1:] + 'q . , ! ?'.split())
 VOCAB_SIZE = len(vocab)
 
 
-def is_valid_text(text):
-    return all(token in accepted_vocab for token in text.split())
+def is_valid_text(text, sep='/'):
+    if sep == '/':
+        return all(token == ' ' or token in accepted_vocab for token in text.split(sep))
+    else:
+        return all(token in accepted_vocab for token in text.split())
 
 
-def encode_text(text):
-    return np.array([v2i[token] for token in text.split(' ') if token in v2i], dtype=np.int8)
+def encode_text(text, sep='/'):
+    return np.array([v2i[token] for token in text.split(sep) if token in v2i], dtype=np.int8)
 
 
 def decode_text(encoded):

@@ -41,11 +41,12 @@ class VocaAligner:
     def __len__(self):
         return len(self.token_pos)
 
-    def get_token(self, start, end):
+    def get_token(self, start, end, use_slash=True):
+        sep = '/ /' if use_slash else ' '
         token_start = self.token_pos[start] if start < len(self) else len(self.text_tokens)
         token_end = self.token_pos[end] if end < len(self) else len(self.text_tokens)
         text = ' '.join(token for token in self.text_tokens[token_start:token_end] if token)
-        voca = ' '.join(token for token in self.voca_tokens[token_start:token_end] if token)
+        voca = sep.join(token.replace(' ', '/') for token in self.voca_tokens[token_start:token_end] if token)
         return text.strip(), voca.strip()
 
 

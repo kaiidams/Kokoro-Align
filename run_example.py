@@ -99,6 +99,7 @@ def combine_files(dataset, align_files, audio_files, segment_files, metadata_fil
                                 print(f'Blocking by unknown yomi {voca}')
                             elif block_voca_decoded(voca, decoded):
                                 print('Blocking by too few match')
+                                voca = voca.replace('/ /', '/').replace('/', ' ')
                                 print(f'voca:    {voca}')
                                 print(f'decoded: {decoded}')
                             else:
