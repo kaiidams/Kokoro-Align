@@ -6,7 +6,7 @@
 # All rights reserved
 # Copyright (c) 2021 Katsuya Iida
 #
-# Generated automatically from yomi2voca.pl.in by configure. 
+# Generated automatically from yomi2voca.pl.in by configure.
 #
 
 # ひらがな -> ROMAN(標準形式) 変換スクリプト
@@ -140,7 +140,7 @@ _CONVRULES = [
     'ろぉ/ r o:',
     'わぁ/ w a:',
     'をぉ/ o:',
-    
+
     'う゛/ b u',
     'でぃ/ d i',
     'でぇ/ d e:',

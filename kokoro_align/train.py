@@ -293,9 +293,9 @@ if __name__ == '__main__':
     use_cuda = not args.no_cuda and torch.cuda.is_available()
 
     torch.manual_seed(args.seed)
-    
+
     device = torch.device("cuda" if use_cuda else "cpu")
-    
+
     if args.train:
         train(args, device)
     elif args.eval:

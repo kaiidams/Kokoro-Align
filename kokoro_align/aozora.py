@@ -36,7 +36,7 @@ class AozoraParser:
         if file_or_url.startswith('https://') or file_or_url.startswith('http://'):
             import requests
             with requests.get(file_or_url) as r:
-                t = r.content.decode('shift_jis') 
+                t = r.content.decode('shift_jis')
                 self.soup = BeautifulSoup(t, 'html.parser')
         else:
             with open(file_or_url, 'rt', encoding='shift_jis') as f:

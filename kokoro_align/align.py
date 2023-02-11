@@ -71,7 +71,7 @@ def ctc_best_path(log_probs, labels, beam_size=1000, max_move=4):
             next_label_pos = label_pos + j
             k, = np.nonzero(
                 (next_label_pos >= next_label_pos_min)
-                & (next_label_pos < next_label_pos_max))            
+                & (next_label_pos < next_label_pos_max))
             v = next_label_pos[k]
             next_beam[j, v - next_label_pos_min] = k
             next_score[j, v - next_label_pos_min] = score[k] + log_probs[i, labels[v]]
@@ -146,7 +146,7 @@ def align(best_path_file, mfcc_file, voca_file, align_file):
     try:
         with open(align_file, 'wt') as f:
             for i in range(len(audio_indices)):
-                audio_start = audio_indices[i - 1] if i > 0 else 0 
+                audio_start = audio_indices[i - 1] if i > 0 else 0
                 audio_end = audio_indices[i]
                 text_start = best_path[audio_start]
                 text_end = best_path[audio_end] if audio_end < len(best_path) else len(aligner)
