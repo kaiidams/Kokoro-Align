@@ -21,6 +21,7 @@ EPILOGUE = """章
 
 KANJI_NUMBER_RX = re.compile(r'[一二三四五六七八九十]{1,3}')
 
+
 class AozoraParser:
     def __init__(self):
         self.outfiles = []
@@ -134,6 +135,7 @@ class AozoraParser:
 
         if len(self.outfiles) != self.outfile_index:
             raise ValueError("Number of files doesn't match")
+
 
 def convert_aozora(aozora_file_or_url, text_files):
     AozoraParser().process(aozora_file_or_url, text_files)

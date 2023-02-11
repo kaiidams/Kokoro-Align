@@ -10,17 +10,22 @@ accepted_vocab = set(vocab[1:] + 'q . , ! ?'.split())
 
 VOCAB_SIZE = len(vocab)
 
+
 def is_valid_text(text):
     return all(token in accepted_vocab for token in text.split())
+
 
 def encode_text(text):
     return np.array([v2i[token] for token in text.split(' ') if token in v2i], dtype=np.int8)
 
+
 def decode_text(encoded):
     return ' '.join(vocab[id_] for id_ in encoded)
+
 
 def merge_repeated(text):
     import re
     r = re.sub(r'(.+)( \1)+', r'\1', text).replace(' _', '').replace('_ ', '')
-    if r == '_': r = ''
+    if r == '_':
+        r = ''
     return r
