@@ -6,6 +6,7 @@ import argparse
 from ._text2voca import text2voca
 from .encoder import encode_text
 
+
 class VocaAligner:
     def __init__(self, input_file):
         self.text_tokens = []
@@ -46,6 +47,7 @@ class VocaAligner:
         text = ' '.join(token for token in self.text_tokens[token_start:token_end] if token)
         voca = ' '.join(token for token in self.voca_tokens[token_start:token_end] if token)
         return text.strip(), voca.strip()
+
 
 def read_transcript(input_file):
     res = []

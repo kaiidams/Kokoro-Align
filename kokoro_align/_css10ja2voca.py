@@ -5,6 +5,7 @@ import re
 _CSS_DOUBLE_RX = re.compile(r'([^-aiueo])\1')
 _CSS_N_RX = re.compile(r'n(?![aiueo])')
 
+
 def css10ja2voca(css):
     t = css.replace(' ', '')
     t = t.replace('。', '.')

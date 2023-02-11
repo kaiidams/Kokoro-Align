@@ -1,8 +1,6 @@
 # Copyright (C) 2021 Katsuya Iida. All rights reserved.
 
-import os
 import numpy as np
-from tqdm import tqdm
 import argparse
 import torch
 import torchaudio
@@ -38,8 +36,8 @@ def open_index_data_for_write(file):
 
 
 def get_silent_ranges(voiced):
-    silent_to_voiced = np.where((~voiced[:-1]) & voiced[1:])[0] + 1 # The position where the voice starts
-    voiced_to_silent = np.where((voiced[:-1]) & ~voiced[1:])[0] + 1 # The position where the silence starts
+    silent_to_voiced = np.where((~voiced[:-1]) & voiced[1:])[0] + 1  # The position where the voice starts
+    voiced_to_silent = np.where((voiced[:-1]) & ~voiced[1:])[0] + 1  # The position where the silence starts
     if not voiced[0]:
         # Eliminate the preceding silence
         silent_to_voiced = silent_to_voiced[1:]
@@ -56,7 +54,7 @@ def get_split_points(x, minimum_silent_frames, minimum_split_distance, maximum_s
     mX = 10 * np.log(mX + eps)
 
     silent_threshold = (np.max(mX) + np.min(mX)) / 2
-    
+
     while True:
         # Fill short silent
         voiced = mX > silent_threshold
@@ -78,7 +76,6 @@ def get_split_points(x, minimum_silent_frames, minimum_split_distance, maximum_s
         minimum_silent_frames *= 0.5
         if minimum_silent_frames < 0.05:
             raise ValueError("Audio cannot be split into")
-
 
     # Merge short splits
     while len(silent_points):
@@ -103,14 +100,14 @@ def get_split_points(x, minimum_silent_frames, minimum_split_distance, maximum_s
 def split_audio(
     audio_file, segment_file, audio_data_file,
     expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_fft=512
-    ):
-    window_size = n_fft // 2 # 46ms
-    minimum_silent_duration = 0.25 # 500ms
-    padding_duration = 0.05 # 50ms
+):
+    window_size = n_fft // 2  # 46ms
+    minimum_silent_duration = 0.25  # 500ms
+    # padding_duration = 0.05  # 50ms
     minimum_silent_frames = minimum_silent_duration * expected_sample_rate / window_size
     minimum_split_distance = 3.0 * expected_sample_rate / window_size
     maximum_split_distance = 15.0 * expected_sample_rate / window_size
-    padding_frames = min(1, int(padding_duration * expected_sample_rate // window_size))
+    # padding_frames = min(1, int(padding_duration * expected_sample_rate // window_size))
 
     mfcc_transform = torchaudio.transforms.MFCC(
         sample_rate=expected_sample_rate,
@@ -122,8 +119,9 @@ def split_audio(
             y, sr = torchaudio.load(audio_file)
             assert len(y.shape) == 2 and y.shape[0] == 1
             assert sr == expected_sample_rate
-            y = torch.mean(y, axis=0) # to mono
-            split_points = get_split_points(y.numpy(), minimum_silent_frames, 
+            y = torch.mean(y, axis=0)  # to mono
+            split_points = get_split_points(
+                y.numpy(), minimum_silent_frames,
                 minimum_split_distance, maximum_split_distance, window_size) * window_size
             for i in range(len(split_points) + 1):
                 start = split_points[i - 1] if i > 0 else 0

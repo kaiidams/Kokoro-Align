@@ -25,7 +25,7 @@ def readcorpus_css10ja(data_dir):
         for line in f:
             parts = line.rstrip('\r\n').split('|')
             id_, _, yomi, _ = parts
-            assert '..' not in id_ # Just make sure it is under the directory.
+            assert '..' not in id_  # Just make sure it is under the directory.
             clipfile = os.path.join(data_dir, id_)
             monophone = css10ja2voca(yomi)
             corpus.append((clipfile, monophone))
@@ -39,7 +39,7 @@ def readcorpus_kokoro(data_dir, format):
         for line in f:
             parts = line.rstrip('\r\n').split('|')
             id_, _, yomi = parts
-            assert '..' not in id_ # Just make sure it is under the directory.
+            assert '..' not in id_  # Just make sure it is under the directory.
             clipfile = os.path.join(data_dir, 'wavs', id_ + '.' + format)
             corpus.append((clipfile, yomi))
     return corpus
@@ -73,11 +73,11 @@ def prepare_dataset(args, expected_sample_rate=22050, n_mfcc=40, n_mels=40, n_ff
                     print(f'Skipping: {monophone}')
                     continue
                 encoded = encode_text(monophone)
-            
+
                 y, sr = torchaudio.load(clipfile)
                 assert len(y.shape) == 2 and y.shape[0] == 1
                 assert sr == expected_sample_rate
-                y = torch.mean(y, axis=0) # to mono
+                y = torch.mean(y, axis=0)  # to mono
                 mfcc = mfcc_transform(y).T
                 textf.write(encoded)
                 audiof.write(mfcc.numpy().astype(np.float32))

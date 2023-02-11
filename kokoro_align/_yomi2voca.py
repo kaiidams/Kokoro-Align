@@ -6,7 +6,7 @@
 # All rights reserved
 # Copyright (c) 2021 Katsuya Iida
 #
-# Generated automatically from yomi2voca.pl.in by configure. 
+# Generated automatically from yomi2voca.pl.in by configure.
 #
 
 # ひらがな -> ROMAN(標準形式) 変換スクリプト
@@ -22,7 +22,7 @@ _CONVRULES = [
     'う゛ぉ/ b o',
     'う゛ゅ/ by u',
 
-# 2文字からなる変換規則
+    # 2文字からなる変換規則
     'ぅ゛/ b u',
 
     'あぁ/ a a',
@@ -140,7 +140,7 @@ _CONVRULES = [
     'ろぉ/ r o:',
     'わぁ/ w a:',
     'をぉ/ o:',
-    
+
     'う゛/ b u',
     'でぃ/ d i',
     'でぇ/ d e:',
@@ -224,7 +224,7 @@ _CONVRULES = [
     'ふぇ/ f e',
     'ふぉ/ f o',
 
-# 1音からなる変換規則
+    # 1音からなる変換規則
     'あ/ a',
     'い/ i',
     'う/ u',
@@ -300,7 +300,7 @@ _CONVRULES = [
     'っ/ q',
     'ー/:',
 
-# ここまでに処理されてない ぁぃぅぇぉ はそのまま大文字扱い
+    # ここまでに処理されてない ぁぃぅぇぉ はそのまま大文字扱い
     'ぁ/ a',
     'ぃ/ i',
     'ぅ/ u',
@@ -309,7 +309,7 @@ _CONVRULES = [
     'ゎ/ w a',
     'ぉ/ o',
 
-#その他特別なルール
+    # その他特別なルール
     'を/ o',
 
     '、/ ,',
@@ -322,14 +322,17 @@ _CONVRULES = [
 _COLON_RX = re.compile(':+')
 _REJECT_RX = re.compile('[^ a-zA-Z:,.?]')
 
+
 def _makerulemap():
-    l = [tuple(x.split('/')) for x in _CONVRULES]
+    rules = [tuple(x.split('/')) for x in _CONVRULES]
     return tuple(
-        {k: v for k, v in l if len(k) == i}
+        {k: v for k, v in rules if len(k) == i}
         for i in range(1, 4)
     )
 
+
 _rulemap1, _rulemap2, _rulemap3 = _makerulemap()
+
 
 def yomi2voca(text: str, ignore_error: bool) -> str:
     """Convert yomi text to phonemes.

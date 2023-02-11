@@ -24,8 +24,8 @@ class IndexArrayDataset(Dataset):
 
     def __init__(self, file):
         with np.load(file) as f:
-          self.indices = f['indices']
-          self.data = f['data']
+            self.indices = f['indices']
+            self.data = f['data']
 
     def __len__(self):
         return len(self.indices)
@@ -100,7 +100,7 @@ def train_loop(epoch, dataloader, model, device, loss_fn, optimizer):
     pbar = tqdm(dataloader, desc=f'train epoch {epoch}')
     for batch_idx, (text, audio, text_len) in enumerate(pbar):
         text, audio, text_len = text.to(device), audio.to(device), text_len.to(device)
-        audio.data.mul_((torch.rand_like(audio.data) > 0.5).to(audio.data.dtype)) # dropout
+        audio.data.mul_((torch.rand_like(audio.data) > 0.5).to(audio.data.dtype))  # dropout
         logits, probs_len = model(audio)
         log_probs = nn.functional.log_softmax(logits, dim=-1)
         text = text.transpose(0, 1)
@@ -130,6 +130,7 @@ def test_loop(epoch, dataloader, model, device, loss_fn):
     print(f"Avg loss: {test_loss:>8f} \n")
     return test_loss
 
+
 def train(args, device):
 
     learning_rate = 0.001
@@ -152,7 +153,7 @@ def train(args, device):
         model.load_state_dict(state['model'])
         optimizer.load_state_dict(state['optimizer'])
         epoch = state['epoch'] + 1
-        #loss = checkpoint['loss']
+        # loss = checkpoint['loss']
     else:
         epoch = 1
 
@@ -165,7 +166,8 @@ def train(args, device):
             'model': model.state_dict(),
             'optimizer': optimizer.state_dict(),
             'loss': test_loss,
-            }, ckpt_path)
+        }, ckpt_path)
+
 
 def evaluate(args, device):
 
@@ -195,6 +197,7 @@ def evaluate(args, device):
             print(target_decoded)
             print(pred_decoded)
 
+
 def predict(args, device):
 
     model = AudioToChar(**DEFAULT_PARAMS).to(device)
@@ -213,7 +216,7 @@ def predict(args, device):
             with open(args.text, 'wt') as txtfile:
                 audio_index = 0
                 for i, audio in enumerate(tqdm(dataloader)):
-                    #audio = pack_sequence([audio], enforce_sorted=False)
+                    # audio = pack_sequence([audio], enforce_sorted=False)
                     logits, logits_len = model(audio)
                     # logits: [audio_len, batch_size, vocab_size]
                     preds = torch.argmax(logits, axis=-1).T
@@ -251,7 +254,7 @@ def export(args, device):
     audio_len = 17
     audio_dim = DEFAULT_PARAMS['n_mfcc']
     audio_batch = torch.rand([audio_len, batch_size, audio_dim], dtype=torch.float32)
-    #audio_batch = pack_sequence(audio_batch, enforce_sorted=False)
+    # audio_batch = pack_sequence(audio_batch, enforce_sorted=False)
     with torch.no_grad():
         outputs = model(audio_batch)
         print(outputs.shape)
@@ -265,10 +268,12 @@ def export(args, device):
             export_params=True,
             opset_version=13,
             do_constant_folding=True,
-            input_names = ['input'],
-            output_names = ['output'],
-            dynamic_axes={'input' : {0: 'input_length'},
-                        'output' : {0: 'input_length'}})
+            input_names=['input'],
+            output_names=['output'],
+            dynamic_axes={
+                'input': {0: 'input_length'},
+                'output': {0: 'input_length'}})
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -288,9 +293,9 @@ if __name__ == '__main__':
     use_cuda = not args.no_cuda and torch.cuda.is_available()
 
     torch.manual_seed(args.seed)
-    
+
     device = torch.device("cuda" if use_cuda else "cpu")
-    
+
     if args.train:
         train(args, device)
     elif args.eval:
