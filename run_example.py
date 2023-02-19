@@ -8,7 +8,7 @@ import sys
 import re
 from glob import glob
 
-MODEL_URL = "https://github.com/kaiidams/Kokoro-Align/releases/download/0.0.2/ctc-20210319.tar.gz"
+MODEL_URL = "https://github.com/kaiidams/Kokoro-Align/releases/download/v0.2/ctc-20221201.tar.gz"
 
 
 def replace_ext(files, fromext, toext):
@@ -50,6 +50,24 @@ def download_script(data_dir, dataset, params_list):
             archive_url = params['archive_url']
             archive_file = os.path.basename(archive_url)
             print(f"unzip {archive_file} -d {id_}")
+
+
+def clean_script(data_dir, dataset, params_list):
+    r"""Prints a shell script to clean temporary files.
+    """
+    print(f'cd {data_dir}')
+    print()
+    for params in params_list:
+        id_ = params['id']
+        if not dataset or id_ == dataset:
+            print(f"rm {id_}/*.plain.txt")
+            print(f"rm {id_}/*.voca.txt")
+            print(f"rm {id_}/*.mfcc.npz")
+            print(f"rm {id_}/*.split.txt")
+            print(f"rm {id_}/*.logits.npz")
+            print(f"rm {id_}/*.greed.txt")
+            print(f"rm {id_}/*.best_path.npz")
+            print(f"rm {id_}/*.align.txt")
 
 
 def combine_files(dataset, align_files, audio_files, segment_files, metadata_file):
@@ -274,6 +292,8 @@ def main(args):
         list_datasets(params_list)
     elif args.download:
         download_script(args.data_dir, args.dataset, params_list)
+    elif args.clean:
+        clean_script(args.data_dir, args.dataset, params_list)
     elif args.copy_index:
         index_file = os.path.join(args.output_dir, 'index.json')
         copy_index(params_list, index_file)
@@ -288,6 +308,7 @@ def main_cli():
     parser.add_argument('--no-cuda', action='store_true', default=False, help='disables CUDA training')
     parser.add_argument('--list', action='store_true', help='List supported dataset ID.')
     parser.add_argument('--download', action='store_true', help='Prints a shell script to download original audio files.')
+    parser.add_argument('--clean', action='store_true', help='Prints a shell script to clean temporary files.')
     parser.add_argument('--copy-index', action='store_true', help='Copy index file.')
     parser.add_argument('--dataset', help='Dataset ID to process')
     parser.add_argument('--data-dir', default='data', help='Data directory')
