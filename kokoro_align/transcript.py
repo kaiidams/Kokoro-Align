@@ -6,6 +6,9 @@ import argparse
 from ._text2voca import text2voca
 from .encoder import encode_text
 
+_PUNCT_PRE_SPACE_RX = re.compile(r' /([.,!?])')
+_PUNCT_POST_SPACE_RX = re.compile(r'([.,!?])/ ')
+
 
 class VocaAligner:
     def __init__(self, input_file):
@@ -47,6 +50,8 @@ class VocaAligner:
         token_end = self.token_pos[end] if end < len(self) else len(self.text_tokens)
         text = ' '.join(token for token in self.text_tokens[token_start:token_end] if token)
         voca = sep.join(token.replace(' ', '/') for token in self.voca_tokens[token_start:token_end] if token)
+        voca = _PUNCT_PRE_SPACE_RX.sub(r'\1', voca)
+        voca = _PUNCT_POST_SPACE_RX.sub(r'\1', voca)
         return text.strip(), voca.strip()
 
 
