@@ -101,7 +101,7 @@ def combine_files(dataset, align_files, audio_files, segment_files, metadata_fil
     try:
         with open(metadata_file, 'wt') as metadata_f:
             idx = 1
-            for align_file, audio_file, segment_file in zip(align_files, audio_files, segment_files): 
+            for align_file, audio_file, segment_file in zip(align_files, audio_files, segment_files):
                 audio_file = os.path.basename(audio_file)
                 with open(align_file, 'rt') as align_f:
                     with open(segment_file, 'rt') as segment_f:
@@ -109,7 +109,7 @@ def combine_files(dataset, align_files, audio_files, segment_files, metadata_fil
                         for align, segment in zip(align_f, segment_f):
                             align_parts = align.rstrip('\r\n').split('|')
                             segment_parts = segment.rstrip('\r\n').split('|')
-                            _, text, voca, decoded, _, _, _ = align_parts                            
+                            _, text, voca, decoded, _, _, _ = align_parts
                             end_frame, = segment_parts
                             if block_text_voca(text, voca):
                                 print(f'Blocking by NG word: {text}')
@@ -155,7 +155,7 @@ def process(args, params):
     audio_dir = os.path.join(args.data_dir, params['id'])
     if not os.path.exists(audio_dir):
         print(f"""Audio files are missing. Please download the archive file from
-{archive_url} 
+{archive_url}
 and extract files in `{audio_dir}'. This scripts
 read audio files from `{audio_dir}/*.mp3'.""")
         sys.exit(1)
@@ -180,9 +180,9 @@ read audio files from `{audio_dir}/*.mp3'.""")
 
     text_files = replace_ext(audio_files, 'mp3', 'plain.txt')
     if all(os.path.exists(file) for file in text_files):
-        print(f'Skip converting Aozora HTML to text files')
+        print('Skip converting Aozora HTML to text files')
     else:
-        print(f'Converting Aozora HTML to text files')
+        print('Converting Aozora HTML to text files')
         from kokoro_align.aozora import convert_aozora
         convert_aozora(aozora_file, text_files)
 
@@ -221,7 +221,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
 
     logits_files = replace_ext(audio_files, 'mp3', 'logits.npz')
     greed_files = replace_ext(audio_files, 'mp3', 'greed.txt')
-    for mfcc_file, logits_file, greed_file in zip(mfcc_files, logits_files, greed_files): 
+    for mfcc_file, logits_file, greed_file in zip(mfcc_files, logits_files, greed_files):
         if os.path.exists(logits_file) and os.path.exists(greed_file):
             print(f'Skip predicting phonemes of {mfcc_file}')
         else:
@@ -243,7 +243,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
     ##################################################
 
     best_path_files = replace_ext(audio_files, 'mp3', 'best_path.npz')
-    for logits_file, voca_file, best_path_file in zip(logits_files, voca_files, best_path_files): 
+    for logits_file, voca_file, best_path_file in zip(logits_files, voca_files, best_path_files):
         if os.path.exists(best_path_file):
             print(f'Skip writing {best_path_file}')
         else:
@@ -256,7 +256,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
     ##################################################
 
     align_files = replace_ext(audio_files, 'mp3', 'align.txt')
-    for best_path_file, mfcc_file, voca_file, align_file in zip(best_path_files, mfcc_files, voca_files, align_files): 
+    for best_path_file, mfcc_file, voca_file, align_file in zip(best_path_files, mfcc_files, voca_files, align_files):
         if os.path.exists(align_file):
             print(f'Skip writing {align_file}')
         else:
@@ -312,8 +312,7 @@ def main_cli():
     parser.add_argument('--dataset', help='Dataset ID to process')
     parser.add_argument('--data-dir', default='data', help='Data directory')
     parser.add_argument('--output-dir', default='output', help='Output directory')
-    parser.add_argument('--model-dir', 
-        default='./model/ctc-20221201', help='Directory to load checkpoints.')
+    parser.add_argument('--model-dir', default='./model/ctc-20221201', help='Directory to load checkpoints.')
     parser.add_argument('--batch-size', type=int, default=128, help='Batch size')
     args = parser.parse_args()
     main(args)
