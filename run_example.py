@@ -180,9 +180,9 @@ read audio files from `{audio_dir}/*.mp3'.""")
 
     text_files = replace_ext(audio_files, 'mp3', 'plain.txt')
     if all(os.path.exists(file) for file in text_files):
-        print(f'Skip converting Aozora HTML to text files')
+        print('Skip converting Aozora HTML to text files')
     else:
-        print(f'Converting Aozora HTML to text files')
+        print('Converting Aozora HTML to text files')
         from kokoro_align.aozora import convert_aozora
         convert_aozora(aozora_file, text_files)
 
@@ -312,8 +312,7 @@ def main_cli():
     parser.add_argument('--dataset', help='Dataset ID to process')
     parser.add_argument('--data-dir', default='data', help='Data directory')
     parser.add_argument('--output-dir', default='output', help='Output directory')
-    parser.add_argument('--model-dir', 
-        default='./model/ctc-20221201', help='Directory to load checkpoints.')
+    parser.add_argument('--model-dir', default='./model/ctc-20221201', help='Directory to load checkpoints.')
     parser.add_argument('--batch-size', type=int, default=128, help='Batch size')
     args = parser.parse_args()
     main(args)
