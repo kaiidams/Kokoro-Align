@@ -6,8 +6,8 @@ import argparse
 from ._text2voca import text2voca
 from .encoder import encode_text
 
-_PUNCT_PRE_SPACE_RX = re.compile(r' /([.,!?])')
-_PUNCT_POST_SPACE_RX = re.compile(r'([.,!?])/ ')
+_PUNCT_PRE_SPACE_RX = re.compile(r'_ ([.,!?])')
+_PUNCT_POST_SPACE_RX = re.compile(r'([.,!?]) _')
 
 
 class VocaAligner:
@@ -44,14 +44,16 @@ class VocaAligner:
     def __len__(self):
         return len(self.token_pos)
 
-    def get_token(self, start, end, use_slash=True):
-        sep = '/ /' if use_slash else ' '
+    def get_token(self, start, end, keep_wordsep=False):
         token_start = self.token_pos[start] if start < len(self) else len(self.text_tokens)
         token_end = self.token_pos[end] if end < len(self) else len(self.text_tokens)
         text = ' '.join(token for token in self.text_tokens[token_start:token_end] if token)
-        voca = sep.join(token.replace(' ', '/') for token in self.voca_tokens[token_start:token_end] if token)
-        voca = _PUNCT_PRE_SPACE_RX.sub(r'\1', voca)
-        voca = _PUNCT_POST_SPACE_RX.sub(r'\1', voca)
+        if keep_wordsep:
+            voca = ' _ '.join(token for token in self.voca_tokens[token_start:token_end] if token)
+            voca = _PUNCT_PRE_SPACE_RX.sub(r'\1', voca)
+            voca = _PUNCT_POST_SPACE_RX.sub(r'\1', voca)
+        else:
+            voca = ' '.join(token for token in self.voca_tokens[token_start:token_end] if token)
         return text.strip(), voca.strip()
 
 
