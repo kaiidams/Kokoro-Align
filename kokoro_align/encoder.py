@@ -16,7 +16,7 @@ def is_valid_text(text):
 
 
 def encode_text(text):
-    return np.array([v2i[token] for token in text.split(' ') if token in v2i], dtype=np.int8)
+    return np.array([v2i[token] for token in text.split() if token in v2i], dtype=np.int8)
 
 
 def decode_text(encoded):

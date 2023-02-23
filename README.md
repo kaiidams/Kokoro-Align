@@ -70,7 +70,7 @@ $ sed -e 's/\.mp3$/.plain.txt/' data/gongitsune_audio_files.txt > data/gongitsun
 You can see a shell script to download data by running
 
 ```
-$ python run_example.py --download --dataset gongitsune-by-nankichi-niimi 
+$ python run_example.py --download --dataset gongitsune-by-nankichi-niimi
 ```
 
 ### Make metadata
@@ -81,7 +81,7 @@ $ python run_example.py
 
 ### Copy index
 
-You can use output directory to make datasets with 
+You can use output directory to make datasets with
 [Kokoro Speech Dataset](https://github.com/kaiidams/Kokoro-Speech-Dataset)
 using `output` direcotry.
 
@@ -92,7 +92,7 @@ $ python run_example.py --copy-index
 
 ### Dataset
 
-- [明暗 (Meian)](https://librivox.org/meian-by-soseki-natsume/) 16:39:29 
+- [明暗 (Meian)](https://librivox.org/meian-by-soseki-natsume/) 16:39:29
     [Online text](http://www.aozora.gr.jp/cards/000148/files/782_14969.html)
 - [こころ (Kokoro)](https://librivox.org/kokoro-by-soseki-natsume/) 08:46:41
     [Online text](http://www.aozora.gr.jp/cards/000148/files/773_14560.html)
