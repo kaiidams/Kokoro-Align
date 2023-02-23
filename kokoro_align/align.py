@@ -124,7 +124,7 @@ def best_path(input_file, voca_file, output_file):
         best_labels=best_labels, best_scores=best_scores)
 
 
-def align(best_path_file, mfcc_file, voca_file, align_file):
+def align(best_path_file, mfcc_file, voca_file, align_file, keep_wordsep):
 
     from .transcript import VocaAligner
 
@@ -161,7 +161,7 @@ def align(best_path_file, mfcc_file, voca_file, align_file):
                 non_blanks_score = np.sum(scores[labels != 0]).item()
                 all_score = np.sum(scores).item()
 
-                text, voca = aligner.get_token(text_start, text_end)
+                text, voca = aligner.get_token(text_start, text_end, keep_wordsep=keep_wordsep)
 
                 f.write(f'{audio_end}|{text}|{voca}|{decoded}|{non_blanks}|{non_blanks_score}|{all_score}\n')
     except:
