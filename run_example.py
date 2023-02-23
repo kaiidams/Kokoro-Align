@@ -262,7 +262,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
         else:
             print(f'Writing {align_file}')
             from kokoro_align.align import align
-            align(best_path_file, mfcc_file, voca_file, align_file)
+            align(best_path_file, mfcc_file, voca_file, align_file, args.remove_wordsep)
 
     ##################################################
     # Write metadata
@@ -314,6 +314,8 @@ def main_cli():
     parser.add_argument('--output-dir', default='output', help='Output directory')
     parser.add_argument('--model-dir', default='./model/ctc-20221201', help='Directory to load checkpoints.')
     parser.add_argument('--batch-size', type=int, default=128, help='Batch size')
+    parser.add_argument('--remove-wordsep', action='store_true', help='Remove word separators in transcripts')
+
     args = parser.parse_args()
     main(args)
 
