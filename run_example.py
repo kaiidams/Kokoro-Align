@@ -70,7 +70,7 @@ def clean_script(data_dir, dataset, params_list):
             print(f"rm {id_}/*.align.txt")
 
 
-def combine_files(dataset, align_files, audio_files, segment_files, metadata_file):
+def combine_files(dataset, align_files, audio_files, segment_files, metadata_file, remove_wordsep):
 
     from kokoro_align.encoder import is_valid_text, encode_text
 
@@ -90,11 +90,13 @@ def combine_files(dataset, align_files, audio_files, segment_files, metadata_fil
     def block_voca_decoded(voca, decoded):
         """Check if more than 70% of decoded labels match with the original transcript
         """
-        voca_len = len(encode_text(voca))
+        voca_len = len([x for x in encode_text(voca) if x != 0])  # 0 for _.
         decoded_len = len(decoded.split())
         return not (voca_len and decoded_len and decoded_len / voca_len > 0.7)
 
     def block_unknown_yomi(voca):
+        if remove_wordsep and '_' in voca:
+            return True
         return not is_valid_text(voca)
 
     os.makedirs(os.path.dirname(metadata_file), exist_ok=True)
@@ -262,7 +264,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
         else:
             print(f'Writing {align_file}')
             from kokoro_align.align import align
-            align(best_path_file, mfcc_file, voca_file, align_file, args.remove_wordsep)
+            align(best_path_file, mfcc_file, voca_file, align_file, remove_wordsep=args.remove_wordsep)
 
     ##################################################
     # Write metadata
@@ -273,7 +275,7 @@ read audio files from `{audio_dir}/*.mp3'.""")
         print(f"Skip writing {metadata_file}")
     else:
         print(f"Writing {metadata_file}")
-        combine_files(params['id'], align_files, audio_files, segment_files, metadata_file)
+        combine_files(params['id'], align_files, audio_files, segment_files, metadata_file, remove_wordsep=args.remove_wordsep)
 
     print('Done!')
 
