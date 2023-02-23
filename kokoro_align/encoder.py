@@ -6,7 +6,7 @@ vocab = (
     '_ N a a: b by ch d e e: f g gy h hy i i: j k ky m my'
     ' n ny o o: p py r ry s sh t ts u u: w y z').split(' ')
 v2i = {v: i for i, v in enumerate(vocab)}
-accepted_vocab = set(vocab[1:] + 'q . , ! ?'.split())
+accepted_vocab = set(vocab + 'q . , ! ?'.split())
 
 VOCAB_SIZE = len(vocab)
 
